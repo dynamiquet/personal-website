@@ -1,41 +1,28 @@
 /*
   context/AuthContext.jsx
 
-  Temporary author/reader switch while real auth is being built.
-  Readers are the default. Author mode is a localStorage flag set from
-  /login — swap this for Clerk (or whatever) later without touching the
-  pages that already call useAuth().isAuthor.
+  Author vs reader is driven by Clerk publicMetadata.
+  In the Clerk Dashboard → Users → (your user) → Public metadata:
+
+    { "role": "author" }
+
+  Everyone else (signed out, or signed in without that role) is a reader.
+  Pages keep calling useAuth().isAuthor — only this file talks to Clerk.
 */
 
-import { createContext, useContext, useState } from 'react'
-
-const STORAGE_KEY = 'dt_is_author'
-const AuthContext = createContext(null)
-
-export function AuthProvider({ children }) {
-  const [isAuthor, setIsAuthor] = useState(
-    () => localStorage.getItem(STORAGE_KEY) === '1',
-  )
-
-  function loginAsAuthor() {
-    localStorage.setItem(STORAGE_KEY, '1')
-    setIsAuthor(true)
-  }
-
-  function logout() {
-    localStorage.removeItem(STORAGE_KEY)
-    setIsAuthor(false)
-  }
-
-  return (
-    <AuthContext.Provider value={{ isAuthor, loginAsAuthor, logout }}>
-      {children}
-    </AuthContext.Provider>
-  )
-}
+import { useUser } from '@clerk/react'
 
 export function useAuth() {
-  const ctx = useContext(AuthContext)
-  if (!ctx) throw new Error('useAuth must be used inside <AuthProvider>')
-  return ctx
+  const { isLoaded, isSignedIn, user } = useUser()
+
+  const isAuthor = Boolean(
+    isSignedIn && user?.publicMetadata?.role === 'author',
+  )
+
+  return {
+    isLoaded,
+    isSignedIn: Boolean(isSignedIn),
+    isAuthor,
+    user,
+  }
 }

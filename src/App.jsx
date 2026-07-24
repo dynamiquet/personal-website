@@ -3,16 +3,10 @@
 
   Sets up React Router and wraps everything in <PostsProvider> so any
   page can read/write posts via usePostsContext().
-
-  To add a new page:
-    1. Create src/pages/YourPage.jsx
-    2. Add <Route path="/your-path" element={<YourPage />} /> below
-    3. Add a <DrawerLink> in src/components/Nav.jsx
-    That's it — nothing else needs to change.
+  Auth comes from ClerkProvider in main.jsx + useAuth() in pages.
 */
 
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
-import { AuthProvider } from './context/AuthContext'
 import { PostsProvider } from './context/PostsContext'
 import Nav      from './components/Nav'
 import Landing  from './pages/Landing'
@@ -22,24 +16,16 @@ import Login    from './pages/Login'
 
 export default function App() {
   return (
-    <AuthProvider>
-      <PostsProvider>
-        <BrowserRouter>
-          {/* Nav is outside <Routes> so it persists across every page */}
-          <Nav />
-          <Routes>
-            <Route path="/"             element={<Landing />}  />
-            <Route path="/writings"     element={<BlogList />} />
-            <Route path="/writings/:id" element={<BlogPost />} />
-            <Route path="/login"        element={<Login />}    />
-
-            {/*
-              Future pages go here, e.g.:
-              <Route path="/gallery" element={<Gallery />} />
-            */}
-          </Routes>
-        </BrowserRouter>
-      </PostsProvider>
-    </AuthProvider>
+    <PostsProvider>
+      <BrowserRouter>
+        <Nav />
+        <Routes>
+          <Route path="/"             element={<Landing />}  />
+          <Route path="/writings"     element={<BlogList />} />
+          <Route path="/writings/:id" element={<BlogPost />} />
+          <Route path="/login"        element={<Login />}    />
+        </Routes>
+      </BrowserRouter>
+    </PostsProvider>
   )
 }
