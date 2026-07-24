@@ -17,6 +17,37 @@ export function formatDateToday() {
   })
 }
 
+/* Essay body fonts — maps to Tailwind font-* tokens already on the site. */
+export const BODY_FONTS = [
+  { id: 'hand',    label: 'Hand',   className: 'font-hand' },
+  { id: 'display', label: 'Serif',  className: 'font-display' },
+  { id: 'ui',      label: 'Clean',  className: 'font-ui' },
+]
+
+export const TEXT_SIZES = [
+  { id: 'sm', label: 'S', className: 'text-[1.45rem] leading-[1.7]' },
+  { id: 'md', label: 'M', className: 'text-[1.85rem] leading-[1.85]' },
+  { id: 'lg', label: 'L', className: 'text-[2.15rem] leading-[1.9]' },
+]
+
+export function bodyFontClass(id) {
+  return BODY_FONTS.find(f => f.id === id)?.className ?? 'font-hand'
+}
+
+export function textSizeClass(id) {
+  return TEXT_SIZES.find(s => s.id === id)?.className ?? TEXT_SIZES[1].className
+}
+
+/** Defaults for new essays / older posts missing fields. */
+export function essayDefaults(post = {}) {
+  return {
+    footer:   post.footer   ?? '',
+    bodyFont: post.bodyFont ?? 'hand',
+    textSize: post.textSize ?? 'md',
+    align:    post.align    ?? 'left',
+  }
+}
+
 /*
   Scatter layout data for blog cards.
   Using a fixed lookup table (not Math.random()) so the layout is stable
