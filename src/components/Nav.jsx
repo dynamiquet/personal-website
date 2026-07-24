@@ -1,19 +1,17 @@
 /*
   components/Nav.jsx
 
-  The persistent nav bar that overlays every page.
-  Manages its own open/close drawer state — nothing outside needs to know.
-
-  To add a new nav link as the site grows:
-    1. Add a <DrawerLink> inside the <aside> below.
-    2. That's it — goTo is just React Router's <Link>.
+  Persistent top bar + side drawer.
+  Drawer order: Sign in (or UserButton) → Essays / My essays.
+  Signed-in users get Log out at the bottom.
+  Author label comes from useAuth().isAuthor (Clerk publicMetadata.role).
 */
 
 import { useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
+import { Show, SignOutButton, UserButton } from '@clerk/react'
 import { useAuth } from '../context/AuthContext'
 
-// A nav link that also closes the drawer when clicked.
 function DrawerLink({ to, children, onClose }) {
   return (
     <Link
@@ -30,16 +28,14 @@ function DrawerLink({ to, children, onClose }) {
 export default function Nav() {
   const [open, setOpen] = useState(false)
   const location = useLocation()
-  const { isAuthor, logout } = useAuth()
+  const { isAuthor } = useAuth()
 
-  // nav is dark-themed on the blog post page
   const isDark = location.pathname.startsWith('/writings/')
   const close  = () => setOpen(false)
   const essaysLabel = isAuthor ? 'My essays' : 'Essays'
 
   return (
     <>
-      {/* ── Fixed top bar ── */}
       <nav
         className={`fixed top-0 left-0 right-0 h-16 z-50 flex items-center
                     justify-between px-7 border-b backdrop-blur-[10px]
@@ -57,7 +53,6 @@ export default function Nav() {
           Dynamique Twizere
         </Link>
 
-        {/* Hamburger button */}
         <button
           aria-label="Toggle menu"
           aria-expanded={open}
@@ -82,14 +77,12 @@ export default function Nav() {
         </button>
       </nav>
 
-      {/* ── Overlay that closes the drawer when clicked ── */}
       <div
         onClick={close}
         className={`fixed inset-0 z-40 bg-black/15 transition-opacity duration-300
                     ${open ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}
       />
 
-      {/* ── Side drawer (slides in from the right, not full-width) ── */}
       <aside
         className={`fixed top-0 right-0 h-screen w-[230px] bg-white z-50
                     shadow-[-8px_0_30px_rgba(0,0,0,0.08)]
@@ -98,38 +91,36 @@ export default function Nav() {
                     transition-transform duration-350
                     ${open ? 'translate-x-0' : 'translate-x-full'}`}
       >
-        {/*
-          Add new links here as the site grows, e.g.:
-          <DrawerLink to="/gallery" onClose={close}>Gallery</DrawerLink>
-        */}
         <div className="flex-1">
+          <Show when="signed-out">
+            <DrawerLink to="/login" onClose={close}>Sign in</DrawerLink>
+          </Show>
+
+          <Show when="signed-in">
+            <div className="flex items-center gap-3 py-3 border-b border-gray-100">
+              <UserButton afterSignOutUrl="/" />
+              <span className="font-ui text-[14px] font-medium text-ink-soft">
+                Account
+              </span>
+            </div>
+          </Show>
+
           <DrawerLink to="/writings" onClose={close}>{essaysLabel}</DrawerLink>
         </div>
 
-        {isAuthor ? (
-          <button
-            type="button"
-            onClick={() => {
-              logout()
-              close()
-            }}
-            className="block w-full text-left py-3 border-t border-gray-100
-                       text-ink-soft hover:text-ink font-ui text-[14px]
-                       font-medium transition-colors"
-          >
-            Sign out
-          </button>
-        ) : (
-          <Link
-            to="/login"
-            onClick={close}
-            className="block py-3 border-t border-gray-100 text-ink-soft
-                       hover:text-ink font-ui text-[14px] font-medium
-                       transition-colors"
-          >
-            Author login
-          </Link>
-        )}
+        <Show when="signed-in">
+          <SignOutButton redirectUrl="/">
+            <button
+              type="button"
+              onClick={close}
+              className="block w-full text-left py-3 border-t border-gray-100
+                         text-ink-soft hover:text-ink font-ui text-[14px]
+                         font-medium transition-colors"
+            >
+              Log out
+            </button>
+          </SignOutButton>
+        </Show>
       </aside>
     </>
   )
