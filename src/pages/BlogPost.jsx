@@ -1,24 +1,13 @@
 /*
-  pages/BlogPost.jsx — page 3 (a single post).
+  pages/BlogPost.jsx — a single essay.
 
-  Two modes, toggled by the Edit button:
-    • Reading mode — immersive, chocolate background, Patrick Hand body font,
-      wide text column, no distractions.
-    • Edit mode — controlled inputs (title) + textarea (body), same aesthetic,
-      Save / Delete / word count visible.
-
-  Editing state is controlled React (useState), not contenteditable — much
-  cleaner to save, validate, and extend later.
-
-  If this page is reached from the "+ New post" card, router state
-  { editing: true } opens edit mode immediately.
-
-  No auth — anyone can edit. See README "Where this should go next" for
-  adding auth before deploying publicly.
+  Authors get read + edit modes (Edit / Save / Delete).
+  Readers only see the reading view — no toolbar, no edit affordances.
 */
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useParams, useNavigate, useLocation, Link } from 'react-router-dom'
+import { useAuth } from '../context/AuthContext'
 import { usePostsContext } from '../context/PostsContext'
 import { readingTime } from '../utils/helpers'
 
@@ -26,24 +15,32 @@ export default function BlogPost() {
   const { id }                          = useParams()
   const navigate                        = useNavigate()
   const { state: routerState }          = useLocation()
+  const { isAuthor }                    = useAuth()
   const { posts, updatePost, deletePost } = usePostsContext()
 
   const post = posts.find(p => p.id === id)
+  const backLabel = isAuthor ? '← My essays' : '← Essays'
 
-  // Local edit state — only committed to context/localStorage on Save
-  const [isEditing, setIsEditing] = useState(routerState?.editing ?? false)
-  const [title,     setTitle]     = useState(post?.title ?? '')
-  const [body,      setBody]      = useState(post?.body  ?? '')
+  // Local edit state — only committed to context/localStorage on Save.
+  // Readers never enter edit mode, even if router state asks for it.
+  const [isEditing, setIsEditing] = useState(
+    isAuthor && (routerState?.editing ?? false),
+  )
+  const [title, setTitle] = useState(post?.title ?? '')
+  const [body,  setBody]  = useState(post?.body  ?? '')
 
-  // Post not found
+  useEffect(() => {
+    if (!isAuthor) setIsEditing(false)
+  }, [isAuthor])
+
   if (!post) {
     return (
       <section className="min-h-screen bg-grad-post pt-16 flex items-center
                           justify-center text-choc-text font-ui">
         <div className="text-center">
-          <p className="text-choc-soft mb-4">Post not found.</p>
+          <p className="text-choc-soft mb-4">Essay not found.</p>
           <Link to="/writings" className="text-choc-accent underline">
-            ← Back to writings
+            {isAuthor ? '← Back to my essays' : '← Back to essays'}
           </Link>
         </div>
       </section>
@@ -60,83 +57,85 @@ export default function BlogPost() {
   }
 
   function handleToggleEdit() {
-    if (isEditing) save()   // autosave when leaving edit mode
+    if (!isAuthor) return
+    if (isEditing) save()
     setIsEditing(e => !e)
   }
 
   function handleDelete() {
-    if (!window.confirm('Delete this post? This cannot be undone.')) return
+    if (!isAuthor) return
+    if (!window.confirm('Delete this essay? This cannot be undone.')) return
     deletePost(id)
     navigate('/writings')
   }
 
   function handleSave() {
+    if (!isAuthor) return
     save()
     setIsEditing(false)
   }
 
   const wordCount = body.trim().split(/\s+/).filter(Boolean).length
+  const showEditUi = isAuthor
 
   return (
     <section className="min-h-screen bg-grad-post text-choc-text pt-16 pb-28 px-[6vw]">
 
-      {/* ── Toolbar ── */}
-      <div className="max-w-[880px] mx-auto mb-5 flex items-center gap-3 justify-end">
-        {isEditing && (
-          <span className="mr-auto text-choc-soft text-xs font-ui">
-            {wordCount} words
-          </span>
-        )}
+      {showEditUi && (
+        <div className="max-w-[880px] mx-auto mb-5 flex items-center gap-3 justify-end">
+          {isEditing && (
+            <span className="mr-auto text-choc-soft text-xs font-ui">
+              {wordCount} words
+            </span>
+          )}
 
-        <button
-          onClick={handleToggleEdit}
-          className="font-ui text-[0.8rem] font-semibold px-4 py-2 rounded-full
-                     bg-white/10 text-choc-text border border-white/25
-                     hover:bg-white/20 transition-colors"
-        >
-          {isEditing ? 'Reading mode' : 'Edit'}
-        </button>
+          <button
+            onClick={handleToggleEdit}
+            className="font-ui text-[0.8rem] font-semibold px-4 py-2 rounded-full
+                       bg-white/10 text-choc-text border border-white/25
+                       hover:bg-white/20 transition-colors"
+          >
+            {isEditing ? 'Reading mode' : 'Edit'}
+          </button>
 
-        {isEditing && (
-          <>
-            <button
-              onClick={handleDelete}
-              className="font-ui text-[0.8rem] font-semibold px-4 py-2 rounded-full
-                         text-[#e8a98c] border border-[#e8a98c]/40
-                         hover:bg-white/10 transition-colors"
-            >
-              Delete
-            </button>
-            <button
-              onClick={handleSave}
-              className="font-ui text-[0.8rem] font-semibold px-4 py-2 rounded-full
-                         bg-choc-accent text-choc-deep border-choc-accent
-                         hover:opacity-90 transition-opacity"
-            >
-              Save
-            </button>
-          </>
-        )}
-      </div>
+          {isEditing && (
+            <>
+              <button
+                onClick={handleDelete}
+                className="font-ui text-[0.8rem] font-semibold px-4 py-2 rounded-full
+                           text-[#e8a98c] border border-[#e8a98c]/40
+                           hover:bg-white/10 transition-colors"
+              >
+                Delete
+              </button>
+              <button
+                onClick={handleSave}
+                className="font-ui text-[0.8rem] font-semibold px-4 py-2 rounded-full
+                           bg-choc-accent text-choc-deep border-choc-accent
+                           hover:opacity-90 transition-opacity"
+              >
+                Save
+              </button>
+            </>
+          )}
+        </div>
+      )}
 
-      {/* ── Content ── */}
       <div className="max-w-[880px] mx-auto">
 
-        {/* Back link + meta */}
         <div className="flex items-center justify-between mb-8">
           <Link
             to="/writings"
             className="text-choc-accent text-[0.9rem] font-semibold font-ui
                        hover:opacity-80 transition-opacity"
           >
-            ← My writings
+            {backLabel}
           </Link>
           <span className="text-choc-soft text-[0.8rem] font-ui">
             {post.date} · {readingTime(post.body)}
           </span>
         </div>
 
-        {/* Title */}
         {isEditing ? (
           <input
             type="text"
@@ -156,7 +155,6 @@ export default function BlogPost() {
           </h1>
         )}
 
-        {/* Body */}
         {isEditing ? (
           <textarea
             value={body}
@@ -171,7 +169,13 @@ export default function BlogPost() {
           />
         ) : (
           <div className="font-hand text-[1.85rem] leading-[1.85] text-choc-text whitespace-pre-wrap">
-            {post.body || <span className="text-choc-soft italic">No content yet — click Edit to write.</span>}
+            {post.body || (
+              <span className="text-choc-soft italic">
+                {isAuthor
+                  ? 'No content yet — click Edit to write.'
+                  : 'No content yet.'}
+              </span>
+            )}
           </div>
         )}
 

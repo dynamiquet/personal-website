@@ -12,6 +12,7 @@
 */
 
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
+import { AuthProvider } from './context/AuthContext'
 import { PostsProvider } from './context/PostsContext'
 import Nav      from './components/Nav'
 import Landing  from './pages/Landing'
@@ -21,22 +22,24 @@ import Login    from './pages/Login'
 
 export default function App() {
   return (
-    <PostsProvider>
-      <BrowserRouter>
-        {/* Nav is outside <Routes> so it persists across every page */}
-        <Nav />
-        <Routes>
-          <Route path="/"             element={<Landing />}  />
-          <Route path="/writings"     element={<BlogList />} />
-          <Route path="/writings/:id" element={<BlogPost />} />
-          <Route path="/login"        element={<Login />}    />
+    <AuthProvider>
+      <PostsProvider>
+        <BrowserRouter>
+          {/* Nav is outside <Routes> so it persists across every page */}
+          <Nav />
+          <Routes>
+            <Route path="/"             element={<Landing />}  />
+            <Route path="/writings"     element={<BlogList />} />
+            <Route path="/writings/:id" element={<BlogPost />} />
+            <Route path="/login"        element={<Login />}    />
 
-          {/*
-            Future pages go here, e.g.:
-            <Route path="/gallery" element={<Gallery />} />
-          */}
-        </Routes>
-      </BrowserRouter>
-    </PostsProvider>
+            {/*
+              Future pages go here, e.g.:
+              <Route path="/gallery" element={<Gallery />} />
+            */}
+          </Routes>
+        </BrowserRouter>
+      </PostsProvider>
+    </AuthProvider>
   )
 }

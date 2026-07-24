@@ -1,20 +1,17 @@
 /*
-  pages/BlogList.jsx — page 2 ("My writings").
+  pages/BlogList.jsx — essays index.
 
-  No title, no description — just the scattered cards, as requested.
-  Card positions come from cardStyle(index) in utils/helpers.js:
-  each card gets a fixed --lift / --tilt CSS var so the :hover rule
-  in index.css can reference them without knowing the actual values.
-
-  The "+ New post" card creates a post and navigates to it in edit mode,
-  passing { state: { editing: true } } through the router.
+  Readers see the scattered cards only.
+  Authors also get "+ New essay", which creates a post and opens it in edit mode.
 */
 
 import { useNavigate } from 'react-router-dom'
+import { useAuth } from '../context/AuthContext'
 import { usePostsContext } from '../context/PostsContext'
 import { cardStyle, readingTime, formatDateToday } from '../utils/helpers'
 
 export default function BlogList() {
+  const { isAuthor } = useAuth()
   const { posts, addPost } = usePostsContext()
   const navigate = useNavigate()
 
@@ -27,7 +24,6 @@ export default function BlogList() {
       body:    '',
     }
     addPost(post)
-    // navigate to the new post and tell it to open in edit mode
     navigate(`/writings/${post.id}`, { state: { editing: true } })
   }
 
@@ -56,7 +52,6 @@ export default function BlogList() {
               {post.excerpt}
             </p>
 
-            {/* Date bottom-left, reading time bottom-right */}
             <span className="absolute left-5 bottom-4 text-[0.74rem]
                              tracking-wide text-ink-soft font-medium font-ui">
               {post.date}
@@ -68,18 +63,19 @@ export default function BlogList() {
           </article>
         ))}
 
-        {/* Front-end "new post" — no code required to publish */}
-        <button
-          onClick={handleNewPost}
-          className="w-[300px] min-h-[230px] rounded-[18px]
-                     border-[1.5px] border-dashed border-accent/40
-                     flex flex-col items-center justify-center gap-2
-                     text-ink-soft hover:border-accent hover:text-accent
-                     transition-colors cursor-pointer bg-transparent"
-        >
-          <span className="text-[2rem] leading-none font-light">+</span>
-          <span className="text-sm font-ui font-medium">New post</span>
-        </button>
+        {isAuthor && (
+          <button
+            onClick={handleNewPost}
+            className="w-[300px] min-h-[230px] rounded-[18px]
+                       border-[1.5px] border-dashed border-accent/40
+                       flex flex-col items-center justify-center gap-2
+                       text-ink-soft hover:border-accent hover:text-accent
+                       transition-colors cursor-pointer bg-transparent"
+          >
+            <span className="text-[2rem] leading-none font-light">+</span>
+            <span className="text-sm font-ui font-medium">New essay</span>
+          </button>
+        )}
 
       </div>
     </section>

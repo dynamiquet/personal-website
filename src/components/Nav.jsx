@@ -11,6 +11,7 @@
 
 import { useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
+import { useAuth } from '../context/AuthContext'
 
 // A nav link that also closes the drawer when clicked.
 function DrawerLink({ to, children, onClose }) {
@@ -29,10 +30,12 @@ function DrawerLink({ to, children, onClose }) {
 export default function Nav() {
   const [open, setOpen] = useState(false)
   const location = useLocation()
+  const { isAuthor, logout } = useAuth()
 
   // nav is dark-themed on the blog post page
   const isDark = location.pathname.startsWith('/writings/')
   const close  = () => setOpen(false)
+  const essaysLabel = isAuthor ? 'My essays' : 'Essays'
 
   return (
     <>
@@ -100,18 +103,33 @@ export default function Nav() {
           <DrawerLink to="/gallery" onClose={close}>Gallery</DrawerLink>
         */}
         <div className="flex-1">
-          <DrawerLink to="/writings" onClose={close}>Writings</DrawerLink>
+          <DrawerLink to="/writings" onClose={close}>{essaysLabel}</DrawerLink>
         </div>
 
-        <Link
-          to="/login"
-          onClick={close}
-          className="block py-3 border-t border-gray-100 text-ink-soft
-                     hover:text-ink font-ui text-[14px] font-medium
-                     transition-colors"
-        >
-          Author login
-        </Link>
+        {isAuthor ? (
+          <button
+            type="button"
+            onClick={() => {
+              logout()
+              close()
+            }}
+            className="block w-full text-left py-3 border-t border-gray-100
+                       text-ink-soft hover:text-ink font-ui text-[14px]
+                       font-medium transition-colors"
+          >
+            Sign out
+          </button>
+        ) : (
+          <Link
+            to="/login"
+            onClick={close}
+            className="block py-3 border-t border-gray-100 text-ink-soft
+                       hover:text-ink font-ui text-[14px] font-medium
+                       transition-colors"
+          >
+            Author login
+          </Link>
+        )}
       </aside>
     </>
   )
