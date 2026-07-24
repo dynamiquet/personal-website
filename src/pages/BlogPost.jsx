@@ -1,15 +1,22 @@
 /*
   pages/BlogPost.jsx — a single essay.
 
-  Authors get read + edit modes (Edit / Save / Delete).
-  Readers only see the reading view — no toolbar, no edit affordances.
+  Authors get read + edit modes. Edit mode includes a toolbar for font,
+  size, alignment, and an optional essay footer.
+  Readers only see the reading view.
 */
 
 import { useEffect, useState } from 'react'
 import { useParams, useNavigate, useLocation, Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { usePostsContext } from '../context/PostsContext'
-import { readingTime } from '../utils/helpers'
+import EditToolbar from '../components/EditToolbar'
+import {
+  readingTime,
+  essayDefaults,
+  bodyFontClass,
+  textSizeClass,
+} from '../utils/helpers'
 
 export default function BlogPost() {
   const { id }                          = useParams()
@@ -19,19 +26,36 @@ export default function BlogPost() {
   const { posts, updatePost, deletePost } = usePostsContext()
 
   const post = posts.find(p => p.id === id)
+  const defaults = essayDefaults(post)
   const backLabel = isAuthor ? '← My essays' : '← Essays'
 
-  // Local edit state — only committed to context/localStorage on Save.
-  // Readers never enter edit mode, even if router state asks for it.
   const [isEditing, setIsEditing] = useState(
     isAuthor && (routerState?.editing ?? false),
   )
-  const [title, setTitle] = useState(post?.title ?? '')
-  const [body,  setBody]  = useState(post?.body  ?? '')
+  const [title, setTitle]         = useState(post?.title ?? '')
+  const [body, setBody]           = useState(post?.body ?? '')
+  const [footer, setFooter]       = useState(defaults.footer)
+  const [bodyFont, setBodyFont]   = useState(defaults.bodyFont)
+  const [textSize, setTextSize]   = useState(defaults.textSize)
+  const [align, setAlign]         = useState(defaults.align)
+  const [showFooter, setShowFooter] = useState(Boolean(defaults.footer))
 
   useEffect(() => {
     if (!isAuthor) setIsEditing(false)
   }, [isAuthor])
+
+  // Keep local edit fields in sync when switching essays.
+  useEffect(() => {
+    if (!post) return
+    const d = essayDefaults(post)
+    setTitle(post.title ?? '')
+    setBody(post.body ?? '')
+    setFooter(d.footer)
+    setBodyFont(d.bodyFont)
+    setTextSize(d.textSize)
+    setAlign(d.align)
+    setShowFooter(Boolean(d.footer))
+  }, [post?.id])
 
   if (!post) {
     return (
@@ -50,9 +74,13 @@ export default function BlogPost() {
   function save() {
     const firstLine = body.split('\n').find(l => l.trim())
     updatePost(id, {
-      title:   title.trim() || 'Untitled',
+      title:    title.trim() || 'Untitled',
       body,
-      excerpt: firstLine ? firstLine.slice(0, 110) : post.excerpt,
+      footer:   footer.trim(),
+      bodyFont,
+      textSize,
+      align,
+      excerpt:  firstLine ? firstLine.slice(0, 110) : post.excerpt,
     })
   }
 
@@ -78,46 +106,45 @@ export default function BlogPost() {
   const wordCount = body.trim().split(/\s+/).filter(Boolean).length
   const showEditUi = isAuthor
 
+  // Reading view uses saved post fields; edit preview uses local state.
+  const viewFont  = isEditing ? bodyFont : (post.bodyFont ?? 'hand')
+  const viewSize  = isEditing ? textSize : (post.textSize ?? 'md')
+  const viewAlign = isEditing ? align    : (post.align ?? 'left')
+  const viewFooter = isEditing ? footer  : (post.footer ?? '')
+  const bodyClasses = `${bodyFontClass(viewFont)} ${textSizeClass(viewSize)} ${
+    viewAlign === 'center' ? 'text-center' : 'text-left'
+  }`
+
   return (
     <section className="min-h-screen bg-grad-post text-choc-text pt-16 pb-28 px-[6vw]">
 
-      {showEditUi && (
-        <div className="max-w-[880px] mx-auto mb-5 flex items-center gap-3 justify-end">
-          {isEditing && (
-            <span className="mr-auto text-choc-soft text-xs font-ui">
-              {wordCount} words
-            </span>
-          )}
+      {showEditUi && isEditing && (
+        <EditToolbar
+          wordCount={wordCount}
+          bodyFont={bodyFont}
+          textSize={textSize}
+          align={align}
+          showFooter={showFooter}
+          onBodyFont={setBodyFont}
+          onTextSize={setTextSize}
+          onAlign={setAlign}
+          onToggleFooter={() => setShowFooter(s => !s)}
+          onReadingMode={handleToggleEdit}
+          onDelete={handleDelete}
+          onSave={handleSave}
+        />
+      )}
 
+      {showEditUi && !isEditing && (
+        <div className="max-w-[880px] mx-auto mb-5 flex justify-end">
           <button
             onClick={handleToggleEdit}
             className="font-ui text-[0.8rem] font-semibold px-4 py-2 rounded-full
                        bg-white/10 text-choc-text border border-white/25
                        hover:bg-white/20 transition-colors"
           >
-            {isEditing ? 'Reading mode' : 'Edit'}
+            Edit
           </button>
-
-          {isEditing && (
-            <>
-              <button
-                onClick={handleDelete}
-                className="font-ui text-[0.8rem] font-semibold px-4 py-2 rounded-full
-                           text-[#e8a98c] border border-[#e8a98c]/40
-                           hover:bg-white/10 transition-colors"
-              >
-                Delete
-              </button>
-              <button
-                onClick={handleSave}
-                className="font-ui text-[0.8rem] font-semibold px-4 py-2 rounded-full
-                           bg-choc-accent text-choc-deep border-choc-accent
-                           hover:opacity-90 transition-opacity"
-              >
-                Save
-              </button>
-            </>
-          )}
         </div>
       )}
 
@@ -132,7 +159,7 @@ export default function BlogPost() {
             {backLabel}
           </Link>
           <span className="text-choc-soft text-[0.8rem] font-ui">
-            {post.date} · {readingTime(post.body)}
+            {post.date} · {readingTime(isEditing ? body : post.body)}
           </span>
         </div>
 
@@ -142,15 +169,19 @@ export default function BlogPost() {
             value={title}
             onChange={e => setTitle(e.target.value)}
             placeholder="Title"
-            className="w-full bg-transparent text-choc-text font-display font-medium
-                       text-[clamp(1.9rem,4vw,2.8rem)] leading-snug mb-8
-                       border-b border-choc-text/20 pb-2 outline-none
-                       placeholder:text-choc-soft/50 focus:border-choc-accent
-                       transition-colors"
+            className={`w-full bg-transparent text-choc-text font-display font-medium
+                        text-[clamp(1.9rem,4vw,2.8rem)] leading-snug mb-8
+                        border-b border-choc-text/20 pb-2 outline-none
+                        placeholder:text-choc-soft/50 focus:border-choc-accent
+                        transition-colors
+                        ${align === 'center' ? 'text-center' : 'text-left'}`}
           />
         ) : (
-          <h1 className="font-display font-medium text-choc-text
-                         text-[clamp(1.9rem,4vw,2.8rem)] leading-snug mb-8">
+          <h1
+            className={`font-display font-medium text-choc-text
+                        text-[clamp(1.9rem,4vw,2.8rem)] leading-snug mb-8
+                        ${viewAlign === 'center' ? 'text-center' : 'text-left'}`}
+          >
             {post.title}
           </h1>
         )}
@@ -160,15 +191,14 @@ export default function BlogPost() {
             value={body}
             onChange={e => setBody(e.target.value)}
             placeholder="Start writing..."
-            rows={18}
-            className="w-full bg-transparent text-choc-text font-hand
-                       text-[1.85rem] leading-[1.85] resize-none outline-none
-                       border border-choc-text/15 rounded-lg p-4
-                       placeholder:text-choc-soft/40 focus:border-choc-accent/50
-                       transition-colors"
+            rows={16}
+            className={`w-full bg-transparent text-choc-text resize-none outline-none
+                        border border-choc-text/15 rounded-lg p-4
+                        placeholder:text-choc-soft/40 focus:border-choc-accent/50
+                        transition-colors ${bodyClasses}`}
           />
         ) : (
-          <div className="font-hand text-[1.85rem] leading-[1.85] text-choc-text whitespace-pre-wrap">
+          <div className={`${bodyClasses} text-choc-text whitespace-pre-wrap`}>
             {post.body || (
               <span className="text-choc-soft italic">
                 {isAuthor
@@ -177,6 +207,38 @@ export default function BlogPost() {
               </span>
             )}
           </div>
+        )}
+
+        {isEditing && showFooter && (
+          <div className="mt-10 pt-8 border-t border-choc-text/15">
+            <label className="block mb-3 font-ui text-[0.7rem] uppercase
+                              tracking-[0.14em] text-choc-soft">
+              Essay footer
+            </label>
+            <textarea
+              value={footer}
+              onChange={e => setFooter(e.target.value)}
+              placeholder="A closing note, dedication, or afterword…"
+              rows={4}
+              className={`w-full bg-transparent text-choc-soft resize-none outline-none
+                          border border-choc-text/15 rounded-lg p-4 text-[1.15rem]
+                          leading-relaxed placeholder:text-choc-soft/35
+                          focus:border-choc-accent/50 transition-colors
+                          ${bodyFontClass(bodyFont)}
+                          ${align === 'center' ? 'text-center' : 'text-left'}`}
+            />
+          </div>
+        )}
+
+        {!isEditing && viewFooter.trim() && (
+          <footer
+            className={`mt-14 pt-8 border-t border-choc-text/15
+                        text-choc-soft text-[1.15rem] leading-relaxed
+                        whitespace-pre-wrap ${bodyFontClass(viewFont)}
+                        ${viewAlign === 'center' ? 'text-center' : 'text-left'}`}
+          >
+            {viewFooter.trim()}
+          </footer>
         )}
 
       </div>

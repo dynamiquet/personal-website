@@ -17,11 +17,15 @@ export default function BlogList() {
 
   function handleNewPost() {
     const post = {
-      id:      'p' + Date.now(),
-      title:   'Untitled',
-      excerpt: 'Click edit to write something here.',
-      date:    formatDateToday(),
-      body:    '',
+      id:       'p' + Date.now(),
+      title:    'Untitled',
+      excerpt:  'Click edit to write something here.',
+      date:     formatDateToday(),
+      body:     '',
+      footer:   '',
+      bodyFont: 'hand',
+      textSize: 'md',
+      align:    'left',
     }
     addPost(post)
     navigate(`/writings/${post.id}`, { state: { editing: true } })
