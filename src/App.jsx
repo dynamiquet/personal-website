@@ -17,6 +17,7 @@ import Nav      from './components/Nav'
 import Landing  from './pages/Landing'
 import BlogList from './pages/BlogList'
 import BlogPost from './pages/BlogPost'
+import Login    from './pages/Login'
 
 export default function App() {
   return (
@@ -28,6 +29,7 @@ export default function App() {
           <Route path="/"             element={<Landing />}  />
           <Route path="/writings"     element={<BlogList />} />
           <Route path="/writings/:id" element={<BlogPost />} />
+          <Route path="/login"        element={<Login />}    />
 
           {/*
             Future pages go here, e.g.:

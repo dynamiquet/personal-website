@@ -91,6 +91,7 @@ export default function Nav() {
         className={`fixed top-0 right-0 h-screen w-[230px] bg-white z-50
                     shadow-[-8px_0_30px_rgba(0,0,0,0.08)]
                     pt-[84px] px-6 pb-6
+                    flex flex-col
                     transition-transform duration-350
                     ${open ? 'translate-x-0' : 'translate-x-full'}`}
       >
@@ -98,7 +99,19 @@ export default function Nav() {
           Add new links here as the site grows, e.g.:
           <DrawerLink to="/gallery" onClose={close}>Gallery</DrawerLink>
         */}
-        <DrawerLink to="/writings" onClose={close}>My writings</DrawerLink>
+        <div className="flex-1">
+          <DrawerLink to="/writings" onClose={close}>Writings</DrawerLink>
+        </div>
+
+        <Link
+          to="/login"
+          onClick={close}
+          className="block py-3 border-t border-gray-100 text-ink-soft
+                     hover:text-ink font-ui text-[14px] font-medium
+                     transition-colors"
+        >
+          Author login
+        </Link>
       </aside>
     </>
   )
