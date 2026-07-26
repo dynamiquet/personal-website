@@ -1,9 +1,14 @@
 /*
-  data/discussions.js — discussion store + helpers.
+  data/discussions.js — normalized discussion store + pure helpers.
 
-  Versioned, normalized store for inline threads, comments, and reactions.
-  Dev persistence: fetchStore / pushStore → Vite /api/discussions → data/discussions.json.
-  loadStore / saveStore remain for tests and guest-id localStorage helpers.
+  Versioned, in-memory shape for inline threads, comments, and reactions plus
+  the pure reducers (createInlineThread / addComment / toggleReaction /
+  deleteComment) and selectors (getPostDiscussion / buildCommentTree /
+  summarizeReactions) shared by the UI.
+
+  Live persistence now lives in src/lib/discussions.js (Supabase). The
+  localStorage / JSON helpers below (loadStore / saveStore / fetchStore /
+  pushStore) remain only for tests and the soon-to-be-removed Vite dev API.
 */
 
 export const STORAGE_KEY = 'dt_discussions_v1'
@@ -37,11 +42,14 @@ function emptyStore() {
   }
 }
 
-export function createId(prefix = 'id') {
+// Bare UUIDs so ids are valid Postgres `uuid` values for the Supabase tables.
+// The prefix arg is kept for call-site readability but no longer affects output.
+export function createId() {
   if (typeof crypto !== 'undefined' && crypto.randomUUID) {
-    return `${prefix}_${crypto.randomUUID()}`
+    return crypto.randomUUID()
   }
-  return `${prefix}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`
+  const hex = (n) => Math.floor(Math.random() * 16 ** n).toString(16).padStart(n, '0')
+  return `${hex(8)}-${hex(4)}-4${hex(3)}-${((Math.random() * 4) | 8).toString(16)}${hex(3)}-${hex(12)}`
 }
 
 export function nowIso() {
