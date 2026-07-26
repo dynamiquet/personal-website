@@ -21,9 +21,9 @@ export default function BlogList() {
       title:    'Untitled',
       excerpt:  'Click edit to write something here.',
       date:     formatDateToday(),
-      body:     '',
-      footer:   '',
-      bodyFont: 'hand',
+      body:      '',
+      footnotes: [],
+      bodyFont:  'hand',
       textSize: 'md',
       align:    'left',
     }
