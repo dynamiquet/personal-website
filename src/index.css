@@ -32,3 +32,128 @@
   opacity: 0;
   animation: rise 0.9s ease forwards 0.15s;
 }
+
+/* Essay Markdown body — chocolate reading surface */
+.essay-body {
+  overflow-wrap: anywhere;
+}
+.essay-body > *:first-child {
+  margin-top: 0;
+}
+.essay-body > *:last-child {
+  margin-bottom: 0;
+}
+.essay-p {
+  margin: 0 0 1.15em;
+}
+.essay-h {
+  font-family: Fraunces, Georgia, serif;
+  font-weight: 500;
+  color: #f1e3cc;
+  line-height: 1.25;
+  margin: 1.6em 0 0.55em;
+}
+.essay-h1 { font-size: 1.35em; }
+.essay-h2 { font-size: 1.22em; }
+.essay-h3 { font-size: 1.1em; }
+.essay-h4 { font-size: 1.05em; }
+.essay-a {
+  color: #c98a4b;
+  text-decoration: underline;
+  text-underline-offset: 0.18em;
+  text-decoration-thickness: 1px;
+}
+.essay-a:hover {
+  opacity: 0.85;
+}
+.essay-strong {
+  font-weight: 700;
+  color: #f7ecda;
+}
+.essay-em {
+  font-style: italic;
+}
+.essay-del {
+  text-decoration: line-through;
+}
+.essay-ul,
+.essay-ol {
+  margin: 0 0 1.15em;
+  padding-left: 1.35em;
+}
+.essay-ul { list-style: disc; }
+.essay-ol { list-style: decimal; }
+.essay-li {
+  margin: 0.35em 0;
+}
+.essay-li > .essay-p {
+  margin-bottom: 0.4em;
+}
+.essay-quote {
+  margin: 0 0 1.25em;
+  padding: 0.15em 0 0.15em 1em;
+  border-left: 3px solid rgba(201, 138, 75, 0.55);
+  color: #cdb89a;
+}
+.essay-quote .essay-p {
+  margin-bottom: 0.5em;
+}
+.essay-code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.82em;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 0.3em;
+  padding: 0.1em 0.35em;
+}
+.essay-pre {
+  margin: 0 0 1.25em;
+  padding: 1em 1.1em;
+  overflow-x: auto;
+  background: rgba(0, 0, 0, 0.28);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 0.5em;
+}
+.essay-pre .essay-code,
+.essay-code-block {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.75em;
+  background: transparent;
+  border: none;
+  padding: 0;
+  color: #e8d7be;
+  white-space: pre;
+}
+.essay-img {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  height: auto;
+  margin: 1.4em 0;
+  border: 1px solid rgba(241, 227, 204, 0.12);
+}
+.essay-hr {
+  border: none;
+  border-top: 1px solid rgba(241, 227, 204, 0.2);
+  margin: 2em 0;
+}
+.essay-table-wrap {
+  overflow-x: auto;
+  margin: 0 0 1.25em;
+}
+.essay-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85em;
+}
+.essay-table th,
+.essay-table td {
+  border: 1px solid rgba(241, 227, 204, 0.18);
+  padding: 0.45em 0.65em;
+  text-align: left;
+}
+.essay-table th {
+  color: #f1e3cc;
+  background: rgba(255, 255, 255, 0.05);
+}
+
