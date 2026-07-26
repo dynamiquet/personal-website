@@ -1,5 +1,5 @@
 /*
-  Shared field styles for custom Clerk auth forms (sign-in / sign-up).
+  Shared field styles for custom auth forms (sign-in / sign-up).
 */
 
 import { useState } from 'react'

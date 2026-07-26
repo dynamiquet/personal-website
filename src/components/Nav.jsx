@@ -2,14 +2,13 @@
   components/Nav.jsx
 
   Persistent top bar + side drawer.
-  Drawer order: Sign in (or UserButton) → Essays / My essays.
+  Drawer order: Sign in (or account) → Essays / My essays.
   Signed-in users get Log out at the bottom.
-  Author label comes from useAuth().isAuthor (Clerk publicMetadata.role).
+  Author label comes from useAuth().isAuthor (profiles.role).
 */
 
 import { useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
-import { Show, SignOutButton, UserButton } from '@clerk/react'
 import { useAuth } from '../context/AuthContext'
 
 function DrawerLink({ to, children, onClose }) {
@@ -28,17 +27,17 @@ function DrawerLink({ to, children, onClose }) {
 export default function Nav() {
   const [open, setOpen] = useState(false)
   const location = useLocation()
-  const { isAuthor, user } = useAuth()
+  const { isSignedIn, isAuthor, user, signOut } = useAuth()
 
   const isDark = location.pathname.startsWith('/writings/')
-  const close  = () => setOpen(false)
+  const close = () => setOpen(false)
   const essaysLabel = isAuthor ? 'My essays' : 'Essays'
-  const accountLabel = (
-    user?.primaryEmailAddress?.emailAddress
-    || user?.emailAddresses?.[0]?.emailAddress
-    || user?.username
-    || 'Account'
-  )
+  const accountLabel = user?.email || user?.displayName || 'Account'
+
+  async function handleSignOut() {
+    close()
+    await signOut()
+  }
 
   return (
     <>
@@ -98,38 +97,33 @@ export default function Nav() {
                     ${open ? 'translate-x-0' : 'translate-x-full'}`}
       >
         <div className="flex-1">
-          <Show when="signed-out">
+          {!isSignedIn ? (
             <DrawerLink to="/login" onClose={close}>Sign in</DrawerLink>
-          </Show>
-
-          <Show when="signed-in">
-            <div className="flex items-center gap-3 py-3 border-b border-gray-100 min-w-0">
-              <UserButton afterSignOutUrl="/" />
+          ) : (
+            <div className="py-3 border-b border-gray-100 min-w-0">
               <span
-                className="font-ui text-[14px] font-medium text-ink-soft truncate"
+                className="font-ui text-[14px] font-medium text-ink-soft truncate block"
                 title={accountLabel}
               >
                 {accountLabel}
               </span>
             </div>
-          </Show>
+          )}
 
           <DrawerLink to="/writings" onClose={close}>{essaysLabel}</DrawerLink>
         </div>
 
-        <Show when="signed-in">
-          <SignOutButton redirectUrl="/">
-            <button
-              type="button"
-              onClick={close}
-              className="block w-full text-left py-3 border-t border-gray-100
-                         text-ink-soft hover:text-ink font-ui text-[14px]
-                         font-medium transition-colors"
-            >
-              Log out
-            </button>
-          </SignOutButton>
-        </Show>
+        {isSignedIn && (
+          <button
+            type="button"
+            onClick={handleSignOut}
+            className="block w-full text-left py-3 border-t border-gray-100
+                       text-ink-soft hover:text-ink font-ui text-[14px]
+                       font-medium transition-colors"
+          >
+            Log out
+          </button>
+        )}
       </aside>
     </>
   )
