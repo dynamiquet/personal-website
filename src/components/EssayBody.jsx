@@ -4,13 +4,15 @@
   Renders essay Markdown: headings, emphasis, links, images, lists,
   blockquotes, code, GFM extras, and footnotes (superscript + endnotes).
 
-  Footnote superscripts and ↩ backrefs keep their ids/hrefs so clicks
-  scroll between the marker and the Notes entry.
+  Inline discussion annotations are applied in the DOM after render so
+  offsets match the same visible-text model used by text selection.
 */
 
+import { useLayoutEffect, useMemo } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { withFootnoteDefs } from '../utils/markdown'
+import { applyDomAnnotations } from '../utils/commentAnchors'
 
 function classNameToString(className) {
   if (!className) return ''
@@ -39,6 +41,19 @@ function isFootnoteHref(href) {
     href.includes('#user-content-fn')
     || href.startsWith('#fn')
   )
+}
+
+function openAnnotationThreads(e, onAnnotationActivate) {
+  const mark = e.target.closest?.('mark.essay-annotation')
+  if (!mark || !onAnnotationActivate) return false
+  e.preventDefault()
+  e.stopPropagation()
+  const ids = (mark.getAttribute('data-thread-ids') || '')
+    .split(',')
+    .map(s => s.trim())
+    .filter(Boolean)
+  if (ids.length) onAnnotationActivate(ids)
+  return true
 }
 
 const components = {
@@ -140,8 +155,28 @@ export default function EssayBody({
   footnotes = [],
   className = '',
   emptyLabel,
+  annotationThreads = [],
+  annotationsEnabled = true,
+  onAnnotationActivate,
+  bodyRef,
 }) {
   const text = (content ?? '').trim()
+
+  const markdown = useMemo(
+    () => (text ? withFootnoteDefs(content, footnotes) : ''),
+    [text, content, footnotes],
+  )
+
+  // Re-apply marks whenever markdown or discussion threads change.
+  useLayoutEffect(() => {
+    const root = bodyRef?.current
+    if (!root) return undefined
+    applyDomAnnotations(root, annotationThreads, { enabled: annotationsEnabled })
+    return () => {
+      // Clean marks before React replaces children on the next render.
+      if (bodyRef?.current) applyDomAnnotations(bodyRef.current, [], { enabled: false })
+    }
+  }, [bodyRef, markdown, annotationThreads, annotationsEnabled])
 
   if (!text) {
     return emptyLabel ? (
@@ -149,10 +184,16 @@ export default function EssayBody({
     ) : null
   }
 
-  const markdown = withFootnoteDefs(content, footnotes)
-
   return (
-    <div className={`essay-body ${className}`}>
+    <div
+      ref={bodyRef}
+      className={`essay-body ${className}`}
+      onClick={e => openAnnotationThreads(e, onAnnotationActivate)}
+      onKeyDown={e => {
+        if (e.key !== 'Enter' && e.key !== ' ') return
+        openAnnotationThreads(e, onAnnotationActivate)
+      }}
+    >
       <ReactMarkdown remarkPlugins={[remarkGfm]} components={components}>
         {markdown}
       </ReactMarkdown>

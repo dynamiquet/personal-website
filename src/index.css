@@ -215,3 +215,38 @@
   box-shadow: 0 0 0 0.35em rgba(201, 138, 75, 0.22);
   border-radius: 0.2em;
 }
+
+/* Inline discussion annotations — dotted underline, clearly not a hyperlink */
+.essay-annotation {
+  color: inherit;
+  background: transparent;
+  border-radius: 0;
+  padding: 0;
+  cursor: pointer;
+  text-decoration: none;
+  border-bottom: 2px dotted #c98a4b;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+}
+.essay-annotation:hover {
+  border-bottom-color: #e0a56a;
+}
+.essay-annotation:focus {
+  outline: none;
+}
+.essay-annotation:focus-visible {
+  outline: 2px solid rgba(201, 138, 75, 0.85);
+  outline-offset: 2px;
+  border-radius: 0.15em;
+}
+
+.comment-tree-scroll {
+  scrollbar-gutter: stable;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .essay-annotation,
+  .essay-fn-flash {
+    transition: none !important;
+  }
+}

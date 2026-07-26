@@ -4,17 +4,25 @@
   Authors get read + edit modes. Edit mode includes a toolbar for font,
   size, alignment, Markdown formatting, footnotes, and live preview.
   Readers only see the reading view (Markdown + superscript footnotes).
+
+  Reading mode also hosts inline excerpt discussion and a general
+  comment section (localStorage prototype via DiscussionContext).
 */
 
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useParams, useNavigate, useLocation, Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { usePostsContext } from '../context/PostsContext'
+import { useDiscussion } from '../context/DiscussionContext'
 import EditToolbar from '../components/EditToolbar'
 import EssayBody from '../components/EssayBody'
 import FootnotesEditor from '../components/FootnotesEditor'
 import MarkdownToolbar from '../components/MarkdownToolbar'
 import { ConfirmDialog } from '../components/Dialog'
+import CommentsVisibilityToggle from '../components/comments/CommentsVisibilityToggle'
+import SelectionToolbar from '../components/comments/SelectionToolbar'
+import InlineThreadPanel from '../components/comments/InlineThreadPanel'
+import GeneralCommentsSection from '../components/comments/GeneralCommentsSection'
 import {
   readingTime,
   excerptFromBody,
@@ -23,6 +31,7 @@ import {
   textSizeClass,
 } from '../utils/helpers'
 import { handleMarkdownKeyDown, stripMarkdown } from '../utils/markdown'
+import { selectionToAnchor } from '../utils/commentAnchors'
 
 export default function BlogPost() {
   const { id }                          = useParams()
@@ -30,7 +39,22 @@ export default function BlogPost() {
   const { state: routerState }          = useLocation()
   const { isAuthor }                    = useAuth()
   const { posts, updatePost, deletePost } = usePostsContext()
+  const {
+    isSignedIn,
+    viewerId,
+    getDiscussionForPost,
+    createInlineThreadWithComment,
+    createInlineReaction,
+    toggleExcerptReaction,
+    addArticleComment,
+    addInlineReply,
+    toggleCommentReaction,
+    canDeleteComment,
+    deleteComment,
+  } = useDiscussion()
+
   const bodyRef                         = useRef(null)
+  const essayRootRef                    = useRef(null)
   const undoStackRef                    = useRef([])
   const redoStackRef                    = useRef([])
   const lastTypingAtRef                 = useRef(0)
@@ -52,6 +76,27 @@ export default function BlogPost() {
   const [confirmDelete, setConfirmDelete] = useState(false)
   const promptApiRef = useRef({})
 
+  const [showOthersComments, setShowOthersComments] = useState(true)
+  const [selectionState, setSelectionState] = useState(null)
+  const [activeThreadIds, setActiveThreadIds] = useState(null)
+
+  const discussion = useMemo(
+    () => (post ? getDiscussionForPost(post.id) : { inlineThreads: [], comments: [], reactions: [] }),
+    [post, getDiscussionForPost],
+  )
+
+  const annotationThreads = useMemo(() => (
+    discussion.inlineThreads.filter((thread) => {
+      const hasComment = discussion.comments.some(c => c.threadId === thread.id)
+      const hasReaction = discussion.reactions.some(
+        r => r.targetType === 'excerpt' && r.targetId === thread.id,
+      )
+      return hasComment || hasReaction
+    })
+  ), [discussion])
+
+  const readingMode = !isEditing
+
   useEffect(() => {
     if (!isAuthor) setIsEditing(false)
   }, [isAuthor])
@@ -70,7 +115,114 @@ export default function BlogPost() {
     undoStackRef.current = []
     redoStackRef.current = []
     lastTypingAtRef.current = 0
+    setSelectionState(null)
+    setActiveThreadIds(null)
   }, [post?.id])
+
+  useEffect(() => {
+    if (!readingMode) {
+      setSelectionState(null)
+      setActiveThreadIds(null)
+    }
+  }, [readingMode])
+
+  const clearSelectionUi = useCallback(() => {
+    setSelectionState(null)
+  }, [])
+
+  const handleAnnotationActivate = useCallback((threadIds) => {
+    if (!showOthersComments) return
+    setSelectionState(null)
+    setActiveThreadIds(threadIds)
+  }, [showOthersComments])
+
+  useEffect(() => {
+    if (!readingMode) return undefined
+
+    function refreshFromSelection() {
+      const sel = window.getSelection()
+      const root = essayRootRef.current
+      if (!sel || !root || sel.isCollapsed) {
+        return false
+      }
+      const anchor = selectionToAnchor(root, sel)
+      if (!anchor) {
+        return false
+      }
+      try {
+        const range = sel.getRangeAt(0)
+        const rect = range.getBoundingClientRect()
+        if (!rect || (rect.width === 0 && rect.height === 0)) return false
+        setActiveThreadIds(null)
+        setSelectionState({ anchor, rect: {
+          top: rect.top,
+          bottom: rect.bottom,
+          left: rect.left,
+          width: rect.width,
+          height: rect.height,
+        } })
+        return true
+      } catch {
+        return false
+      }
+    }
+
+    function onMouseUp(e) {
+      if (e.target.closest?.('[data-comment-ui]')) return
+      window.setTimeout(() => {
+        const opened = refreshFromSelection()
+        // Click collapsed the selection (or landed elsewhere) — dismiss the box.
+        if (!opened) clearSelectionUi()
+      }, 0)
+    }
+
+    function onKeyUp(e) {
+      // Shift/arrow selection shortcuts — ignore while typing in comment UI
+      // (capital letters release Shift and would otherwise dismiss the composer).
+      if (e.target?.closest?.('[data-comment-ui]')) return
+      if (document.activeElement?.closest?.('[data-comment-ui]')) return
+      if (e.key === 'Shift' || e.key.startsWith('Arrow') || e.key === 'a' && (e.metaKey || e.ctrlKey)) {
+        window.setTimeout(() => {
+          if (!refreshFromSelection()) clearSelectionUi()
+        }, 0)
+      }
+    }
+
+    function onPointerDown(e) {
+      if (e.target.closest?.('[data-comment-ui]')) return
+      // Right-click / context-menu shouldn't dismiss the composer.
+      if (e.button === 2) return
+      // Any primary click outside the toolbar dismisses it. A real text
+      // selection will reopen it on mouseup.
+      clearSelectionUi()
+    }
+
+    document.addEventListener('mouseup', onMouseUp)
+    document.addEventListener('keyup', onKeyUp)
+    document.addEventListener('pointerdown', onPointerDown)
+    return () => {
+      document.removeEventListener('mouseup', onMouseUp)
+      document.removeEventListener('keyup', onKeyUp)
+      document.removeEventListener('pointerdown', onPointerDown)
+    }
+  }, [readingMode, clearSelectionUi])
+
+  // Autosave 3s after the last edit while in edit mode.
+  useEffect(() => {
+    if (!isEditing || !isAuthor || !post) return undefined
+    const d = essayDefaults(post)
+    const dirty = (
+      title !== (post.title ?? '')
+      || body !== (post.body ?? '')
+      || JSON.stringify(footnotes) !== JSON.stringify(d.footnotes)
+      || bodyFont !== d.bodyFont
+      || textSize !== d.textSize
+      || align !== d.align
+    )
+    if (!dirty) return undefined
+    const timer = window.setTimeout(() => save(), 3000)
+    return () => window.clearTimeout(timer)
+  }, [isEditing, isAuthor, post, title, body, footnotes, bodyFont, textSize, align])
 
   function changeBody(next, { source = 'typing' } = {}) {
     if (next === body) return
@@ -182,8 +334,47 @@ export default function BlogPost() {
     ? 'No content yet — click Edit to write.'
     : 'No content yet.'
 
+  const activeThreads = (activeThreadIds ?? [])
+    .map(tid => discussion.inlineThreads.find(t => t.id === tid))
+    .filter(Boolean)
+
+  function handleSelectionReact(emoji) {
+    if (!selectionState?.anchor) return
+    const result = createInlineReaction({
+      postId: post.id,
+      anchor: selectionState.anchor,
+      emoji,
+    })
+    if (result?.ok) {
+      window.getSelection()?.removeAllRanges()
+      clearSelectionUi()
+      if (result.thread?.id) setActiveThreadIds([result.thread.id])
+    }
+  }
+
+  function handleSelectionComment(text) {
+    if (!selectionState?.anchor) return { ok: false }
+    const result = createInlineThreadWithComment({
+      postId: post.id,
+      anchor: selectionState.anchor,
+      text,
+    })
+    if (result?.ok) {
+      window.getSelection()?.removeAllRanges()
+      clearSelectionUi()
+      setActiveThreadIds([result.thread.id])
+    }
+    return result
+  }
+
+  const panelOpen = readingMode && Boolean(activeThreadIds?.length)
+
   return (
-    <section className="min-h-screen bg-grad-post text-choc-text pt-16 pb-28 px-[6vw]">
+    <section
+      className={`min-h-screen bg-grad-post text-choc-text pt-16 pb-28 px-[6vw]
+                  transition-[padding] duration-300
+                  ${panelOpen ? 'md:pr-[calc(min(26rem,92vw)+2rem)]' : ''}`}
+    >
 
       {showEditUi && isEditing && (
         <EditToolbar
@@ -215,7 +406,7 @@ export default function BlogPost() {
 
       <div className="max-w-[880px] mx-auto">
 
-        <div className="flex items-center justify-between mb-8">
+        <div className="flex items-center justify-between mb-8 gap-3 flex-wrap">
           <Link
             to="/writings"
             className="text-choc-accent text-[0.9rem] font-semibold font-ui
@@ -223,9 +414,20 @@ export default function BlogPost() {
           >
             {backLabel}
           </Link>
-          <span className="text-choc-soft text-[0.8rem] font-ui">
-            {post.date} · {readingTime(isEditing ? body : post.body)}
-          </span>
+          <div className="flex items-center gap-4 flex-wrap justify-end">
+            {readingMode && (
+              <CommentsVisibilityToggle
+                checked={showOthersComments}
+                onChange={(next) => {
+                  setShowOthersComments(next)
+                  if (!next) setActiveThreadIds(null)
+                }}
+              />
+            )}
+            <span className="text-choc-soft text-[0.8rem] font-ui">
+              {post.date} · {readingTime(isEditing ? body : post.body)}
+            </span>
+          </div>
         </div>
 
         {isEditing ? (
@@ -322,15 +524,86 @@ export default function BlogPost() {
             />
           </div>
         ) : (
-          <EssayBody
-            content={viewBody}
-            footnotes={viewNotes}
-            className={`${bodyClasses} text-choc-text`}
-            emptyLabel={isEditing ? 'Nothing to preview yet.' : emptyBodyLabel}
-          />
+          <>
+            <EssayBody
+              content={viewBody}
+              footnotes={viewNotes}
+              className={`${bodyClasses} text-choc-text`}
+              emptyLabel={isEditing ? 'Nothing to preview yet.' : emptyBodyLabel}
+              bodyRef={readingMode ? essayRootRef : undefined}
+              annotationThreads={readingMode ? annotationThreads : []}
+              annotationsEnabled={readingMode && showOthersComments}
+              onAnnotationActivate={readingMode ? handleAnnotationActivate : undefined}
+            />
+
+            {readingMode && (
+              <GeneralCommentsSection
+                comments={discussion.comments}
+                reactions={discussion.reactions}
+                viewerId={viewerId}
+                viewerIsAuthor={isAuthor}
+                isSignedIn={isSignedIn}
+                onAddComment={text => addArticleComment({ postId: post.id, text })}
+                onReply={(parentId, text) => addArticleComment({
+                  postId: post.id,
+                  text,
+                  parentId,
+                })}
+                onToggleCommentReaction={(commentId, emoji) => (
+                  toggleCommentReaction({ commentId, emoji })
+                )}
+                canDeleteComment={canDeleteComment}
+                onDeleteComment={commentId => deleteComment({ commentId })}
+              />
+            )}
+          </>
         )}
 
       </div>
+
+      {readingMode && selectionState && (
+        <SelectionToolbar
+          anchor={selectionState.anchor}
+          rangeRect={selectionState.rect}
+          isSignedIn={isSignedIn}
+          onClose={clearSelectionUi}
+          onReact={handleSelectionReact}
+          onComment={handleSelectionComment}
+        />
+      )}
+
+      {readingMode && (
+        <InlineThreadPanel
+          open={Boolean(activeThreadIds?.length)}
+          threads={activeThreads}
+          comments={discussion.comments}
+          reactions={discussion.reactions}
+          viewerId={viewerId}
+          viewerIsAuthor={isAuthor}
+          isSignedIn={isSignedIn}
+          onClose={() => setActiveThreadIds(null)}
+          onToggleExcerptReaction={(threadId, emoji) => (
+            toggleExcerptReaction({ threadId, emoji })
+          )}
+          onToggleCommentReaction={(commentId, emoji) => (
+            toggleCommentReaction({ commentId, emoji })
+          )}
+          onReply={(threadId, parentId, text) => addInlineReply({
+            postId: post.id,
+            threadId,
+            parentId,
+            text,
+          })}
+          onAddTopLevelComment={(threadId, text) => addInlineReply({
+            postId: post.id,
+            threadId,
+            parentId: null,
+            text,
+          })}
+          canDeleteComment={canDeleteComment}
+          onDeleteComment={commentId => deleteComment({ commentId })}
+        />
+      )}
 
       <ConfirmDialog
         open={confirmDelete}
