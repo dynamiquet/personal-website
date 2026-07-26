@@ -304,3 +304,60 @@ export function markdownActions(textarea, onChange, { onRequestLink, onRequestIm
     },
   }
 }
+
+/**
+ * Conventional editor shortcuts (Mac + Windows):
+ *   ⌘/Ctrl+B  bold
+ *   ⌘/Ctrl+I  italic
+ *   ⌘/Ctrl+K  link
+ *   ⌘/Ctrl+Shift+X  strikethrough
+ *   ⌘/Ctrl+\  clear formatting
+ *   ⌘/Ctrl+Z  undo
+ * Returns true if the event was handled.
+ */
+export function handleMarkdownKeyDown(e, textarea, onChange, extras = {}) {
+  if (!(e.metaKey || e.ctrlKey) || e.altKey) return false
+
+  const { onUndo, onRedo, ...promptHandlers } = extras
+  const key = e.key.toLowerCase()
+  const actions = markdownActions(textarea, onChange, promptHandlers)
+
+  if (key === 'z') {
+    e.preventDefault()
+    if (e.shiftKey) onRedo?.()
+    else onUndo?.()
+    return true
+  }
+  if (key === 'y' && !e.shiftKey) {
+    e.preventDefault()
+    onRedo?.()
+    return true
+  }
+  if (key === 'x' && e.shiftKey) {
+    e.preventDefault()
+    actions.strike()
+    return true
+  }
+  if (key === 'b') {
+    e.preventDefault()
+    actions.bold()
+    return true
+  }
+  if (key === 'i') {
+    e.preventDefault()
+    actions.italic()
+    return true
+  }
+  if (key === 'k') {
+    e.preventDefault()
+    actions.link()
+    return true
+  }
+  if (key === '\\' || e.code === 'Backslash') {
+    e.preventDefault()
+    actions.clear()
+    return true
+  }
+
+  return false
+}
