@@ -20,10 +20,18 @@ export function excerptFromBody(body, maxLen = 110) {
 }
 
 export function formatDateToday() {
-  return new Date().toLocaleDateString('en-US', {
+  return formatPublishedAt(new Date())
+}
+
+/** Format a timestamptz / Date / ISO string for essay cards and headers. */
+export function formatPublishedAt(value) {
+  if (!value) return ''
+  const date = value instanceof Date ? value : new Date(value)
+  if (Number.isNaN(date.getTime())) return ''
+  return date.toLocaleDateString('en-US', {
     month: 'long',
-    day:   'numeric',
-    year:  'numeric',
+    day: 'numeric',
+    year: 'numeric',
   })
 }
 
