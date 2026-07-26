@@ -1,13 +1,13 @@
-import { ClerkProvider } from '@clerk/react'
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App'
+import { AuthProvider } from './context/AuthContext'
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
-    <ClerkProvider afterSignOutUrl="/">
+    <AuthProvider>
       <App />
-    </ClerkProvider>
+    </AuthProvider>
   </StrictMode>,
 )

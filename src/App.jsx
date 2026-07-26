@@ -3,7 +3,7 @@
 
   Sets up React Router and wraps everything in <PostsProvider> so any
   page can read/write posts via usePostsContext().
-  Auth comes from ClerkProvider in main.jsx + useAuth() in pages.
+  Auth comes from AuthProvider in main.jsx + useAuth() in pages.
 */
 
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
