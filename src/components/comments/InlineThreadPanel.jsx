@@ -3,7 +3,6 @@
 */
 
 import { useEffect, useRef } from 'react'
-import CommentComposer from './CommentComposer'
 import CommentTree, { AuthorAvatar } from './CommentTree'
 import ReactionBar from './ReactionBar'
 import {
@@ -56,7 +55,6 @@ export default function InlineThreadPanel({
   onToggleExcerptReaction,
   onReply,
   onToggleCommentReaction,
-  onAddTopLevelComment,
   canDeleteComment,
   onDeleteComment,
 }) {
@@ -169,13 +167,6 @@ export default function InlineThreadPanel({
                       onReply={(parentId, text) => onReply?.(thread.id, parentId, text)}
                       canDelete={canDeleteComment}
                       onDelete={onDeleteComment}
-                    />
-
-                    <CommentComposer
-                      isSignedIn={isSignedIn}
-                      compact
-                      placeholder="Add a comment on this excerpt…"
-                      onSubmit={text => onAddTopLevelComment?.(thread.id, text)}
                     />
                   </>
                 )}

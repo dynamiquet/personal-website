@@ -90,6 +90,14 @@ function CommentBody({ text }) {
   )
 }
 
+function countDescendantReplies(comment) {
+  let n = 0
+  for (const child of comment?.replies ?? []) {
+    n += 1 + countDescendantReplies(child)
+  }
+  return n
+}
+
 function CommentNode({
   comment,
   reactions,
@@ -114,6 +122,10 @@ function CommentNode({
   const timestamp = canSeeTimestamp(comment.author, viewerId, viewerIsAuthor)
     ? formatTime(comment.createdAt)
     : ''
+  const replyCount = countDescendantReplies(comment)
+  const deleteConfirmLabel = replyCount > 0
+    ? `Delete + ${replyCount} ${replyCount === 1 ? 'reply' : 'replies'}?`
+    : 'Confirm delete?'
 
   return (
     <article
@@ -166,6 +178,9 @@ function CommentNode({
         {canDelete?.(comment) && (
           <button
             type="button"
+            title={replyCount > 0
+              ? 'This also permanently deletes all replies and reactions on this thread.'
+              : 'Permanently delete this comment and its reactions.'}
             onClick={() => {
               if (!confirmingDelete) {
                 setConfirmingDelete(true)
@@ -181,7 +196,7 @@ function CommentNode({
                           : 'text-choc-soft hover:bg-white/10 hover:text-red-300'
                         }`}
           >
-            {confirmingDelete ? 'Confirm delete?' : 'Delete'}
+            {confirmingDelete ? deleteConfirmLabel : 'Delete'}
           </button>
         )}
       </div>
