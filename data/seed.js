@@ -1,12 +1,12 @@
 /*
-  data/seed.js — the storage layer.
+  data/seed.js — posts seed + client persistence helpers.
 
-  Everything that touches localStorage lives here and ONLY here.
-  When you move to a real backend, swap loadPosts / savePosts for
-  fetch() calls to your API — nothing else in the project needs to change.
+  Dev persistence: fetchPosts / pushPosts → Vite /api/posts → data/posts.json.
+  loadPosts / savePosts remain available for tests / local fallbacks.
 */
 
 const STORAGE_KEY = 'dt_posts'
+const POSTS_API = '/api/posts'
 
 export const SEED_POSTS = [
   {
@@ -52,19 +52,50 @@ No roadmap, no launch date for some imagined final version. Just a place that gr
   },
 ]
 
-export function loadPosts() {
-  const raw = localStorage.getItem(STORAGE_KEY)
+function normalizePosts(raw) {
+  return Array.isArray(raw) ? raw : [...SEED_POSTS]
+}
+
+export function loadPosts(storage = globalThis.localStorage) {
+  if (!storage) return [...SEED_POSTS]
+  const raw = storage.getItem(STORAGE_KEY)
   if (!raw) {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(SEED_POSTS))
+    storage.setItem(STORAGE_KEY, JSON.stringify(SEED_POSTS))
     return [...SEED_POSTS]
   }
   try {
-    return JSON.parse(raw)
+    return normalizePosts(JSON.parse(raw))
   } catch {
     return [...SEED_POSTS]
   }
 }
 
-export function savePosts(posts) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(posts))
+export function savePosts(posts, storage = globalThis.localStorage) {
+  if (!storage) return
+  storage.setItem(STORAGE_KEY, JSON.stringify(normalizePosts(posts)))
+}
+
+export async function fetchPosts() {
+  try {
+    const res = await fetch(POSTS_API, { cache: 'no-store' })
+    if (!res.ok) return [...SEED_POSTS]
+    return normalizePosts(await res.json())
+  } catch {
+    return [...SEED_POSTS]
+  }
+}
+
+export async function pushPosts(posts) {
+  const normalized = normalizePosts(posts)
+  const res = await fetch(POSTS_API, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(normalized),
+  })
+  if (!res.ok) throw new Error('Failed to save posts')
+  try {
+    return normalizePosts(await res.json())
+  } catch {
+    return normalized
+  }
 }

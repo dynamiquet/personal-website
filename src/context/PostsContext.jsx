@@ -2,25 +2,59 @@
   context/PostsContext.jsx
 
   Wraps all post state so any page can read or mutate posts without prop
-  drilling. The actual localStorage logic stays in src/data/seed.js.
+  drilling. Dev persistence: shared JSON via /api/posts (see vite-plugin-local-api).
 
   Usage:
     import { usePostsContext } from '../context/PostsContext'
     const { posts, addPost, updatePost, deletePost } = usePostsContext()
 */
 
-import { createContext, useContext, useState } from 'react'
-import { loadPosts, savePosts } from '../../data/seed'
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useState,
+} from 'react'
+import { SEED_POSTS, fetchPosts, pushPosts } from '../../data/seed'
 
 const PostsContext = createContext(null)
 
 export function PostsProvider({ children }) {
-  const [posts, setPosts] = useState(() => loadPosts())
+  const [posts, setPosts] = useState(() => [...SEED_POSTS])
+
+  useEffect(() => {
+    let cancelled = false
+
+    async function load() {
+      const remote = await fetchPosts()
+      if (!cancelled) setPosts(remote)
+    }
+
+    load()
+
+    function onFocus() {
+      if (document.visibilityState === 'visible') load()
+    }
+
+    window.addEventListener('focus', onFocus)
+    document.addEventListener('visibilitychange', onFocus)
+    return () => {
+      cancelled = true
+      window.removeEventListener('focus', onFocus)
+      document.removeEventListener('visibilitychange', onFocus)
+    }
+  }, [])
+
+  const persist = useCallback((next) => {
+    setPosts(next)
+    pushPosts(next).catch((err) => {
+      console.warn('Failed to persist posts to shared JSON', err)
+    })
+  }, [])
 
   function addPost(post) {
-    const next = [post, ...posts]
-    setPosts(next)
-    savePosts(next)
+    persist([post, ...posts])
   }
 
   function updatePost(id, changes) {
@@ -30,14 +64,11 @@ export function PostsProvider({ children }) {
       delete merged.footer
       return merged
     })
-    setPosts(next)
-    savePosts(next)
+    persist(next)
   }
 
   function deletePost(id) {
-    const next = posts.filter(p => p.id !== id)
-    setPosts(next)
-    savePosts(next)
+    persist(posts.filter(p => p.id !== id))
   }
 
   return (
