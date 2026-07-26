@@ -6,7 +6,9 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
     "@clerk/react": "^6.12.7",
@@ -22,6 +24,7 @@
     "clerk": "^2.3.0",
     "postcss": "^8.4.39",
     "tailwindcss": "^3.4.4",
-    "vite": "^7.3.6"
+    "vite": "^7.3.6",
+    "vitest": "^3.2.4"
   }
 }
