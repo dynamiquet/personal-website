@@ -24,7 +24,12 @@ export function PostsProvider({ children }) {
   }
 
   function updatePost(id, changes) {
-    const next = posts.map(p => (p.id === id ? { ...p, ...changes } : p))
+    const next = posts.map(p => {
+      if (p.id !== id) return p
+      const merged = { ...p, ...changes }
+      delete merged.footer
+      return merged
+    })
     setPosts(next)
     savePosts(next)
   }
