@@ -18,7 +18,19 @@ export const SEED_POSTS = [
 
 I used to think that meant I was doing it wrong. Now I think it's closer to evidence that I started at all. The embarrassing draft is the one that exists — the polished version only ever lives in my head, where it costs nothing and proves nothing.
 
-So I've stopped waiting for the good version to start. I start with the bad one, and I let it be seen.`,
+## Starting anyway
+
+So I've stopped waiting for the good version to start. I start with the **bad one**, and I let it be *seen*.
+
+> The draft that exists beats the masterpiece that doesn't.
+
+If you want a place to begin, begin [here](/writings) — awkwardly is fine.[^1]`,
+    footnotes: [
+      {
+        id: 1,
+        text: 'A nod to the idea that public drafts teach more than private perfection.',
+      },
+    ],
   },
   {
     id: 'p2',
