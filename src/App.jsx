@@ -8,6 +8,7 @@
 
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import { PostsProvider } from './context/PostsContext'
+import { DiscussionProvider } from './context/DiscussionContext'
 import Nav      from './components/Nav'
 import Landing  from './pages/Landing'
 import BlogList from './pages/BlogList'
@@ -18,16 +19,18 @@ import SignUp   from './pages/SignUp'
 export default function App() {
   return (
     <PostsProvider>
-      <BrowserRouter>
-        <Nav />
-        <Routes>
-          <Route path="/"             element={<Landing />}  />
-          <Route path="/writings"     element={<BlogList />} />
-          <Route path="/writings/:id" element={<BlogPost />} />
-          <Route path="/login"        element={<Login />}    />
-          <Route path="/signup"       element={<SignUp />}   />
-        </Routes>
-      </BrowserRouter>
+      <DiscussionProvider>
+        <BrowserRouter>
+          <Nav />
+          <Routes>
+            <Route path="/"             element={<Landing />}  />
+            <Route path="/writings"     element={<BlogList />} />
+            <Route path="/writings/:id" element={<BlogPost />} />
+            <Route path="/login"        element={<Login />}    />
+            <Route path="/signup"       element={<SignUp />}   />
+          </Routes>
+        </BrowserRouter>
+      </DiscussionProvider>
     </PostsProvider>
   )
 }
