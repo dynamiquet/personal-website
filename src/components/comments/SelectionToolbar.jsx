@@ -105,40 +105,42 @@ export default function SelectionToolbar({
     >
       {!composing ? (
         <div className="flex flex-wrap items-center gap-1">
-          {visibleEmojis.map(item => (
-            <button
-              key={item.id}
-              type="button"
-              title={item.label}
-              aria-label={item.label}
-              onClick={() => onReact?.(item.id)}
-              className="rounded-full px-2 py-1.5 font-ui text-[0.85rem]
-                         hover:bg-white/10 transition-colors"
-            >
-              <span aria-hidden="true">{item.emoji}</span>
-            </button>
-          ))}
-          <button
-            type="button"
-            aria-label={showAllEmojis ? 'Show fewer reactions' : 'Show more reactions'}
-            aria-expanded={showAllEmojis}
-            onClick={() => setShowAllEmojis(v => !v)}
-            className="rounded-full px-2 py-1.5 font-ui text-[0.75rem] font-semibold
-                       text-choc-soft hover:bg-white/10 hover:text-choc-text
-                       transition-colors"
-          >
-            {showAllEmojis ? '−' : `+${REACTION_EMOJIS.length - QUICK_COUNT}`}
-          </button>
-          <span className="mx-0.5 h-5 w-px bg-white/20" aria-hidden="true" />
           {isSignedIn ? (
-            <button
-              type="button"
-              onClick={() => setComposing(true)}
-              className="rounded-full px-2.5 py-1.5 font-ui text-[0.75rem] font-semibold
-                         text-choc-accent hover:bg-white/10 transition-colors"
-            >
-              Add comment
-            </button>
+            <>
+              {visibleEmojis.map(item => (
+                <button
+                  key={item.id}
+                  type="button"
+                  title={item.label}
+                  aria-label={item.label}
+                  onClick={() => onReact?.(item.id)}
+                  className="rounded-full px-2 py-1.5 font-ui text-[0.85rem]
+                             hover:bg-white/10 transition-colors"
+                >
+                  <span aria-hidden="true">{item.emoji}</span>
+                </button>
+              ))}
+              <button
+                type="button"
+                aria-label={showAllEmojis ? 'Show fewer reactions' : 'Show more reactions'}
+                aria-expanded={showAllEmojis}
+                onClick={() => setShowAllEmojis(v => !v)}
+                className="rounded-full px-2 py-1.5 font-ui text-[0.75rem] font-semibold
+                           text-choc-soft hover:bg-white/10 hover:text-choc-text
+                           transition-colors"
+              >
+                {showAllEmojis ? '−' : `+${REACTION_EMOJIS.length - QUICK_COUNT}`}
+              </button>
+              <span className="mx-0.5 h-5 w-px bg-white/20" aria-hidden="true" />
+              <button
+                type="button"
+                onClick={() => setComposing(true)}
+                className="rounded-full px-2.5 py-1.5 font-ui text-[0.75rem] font-semibold
+                           text-choc-accent hover:bg-white/10 transition-colors"
+              >
+                Add comment
+              </button>
+            </>
           ) : (
             <Link
               to="/login"
@@ -146,7 +148,7 @@ export default function SelectionToolbar({
               className="rounded-full px-2.5 py-1.5 font-ui text-[0.75rem] font-semibold
                          text-choc-accent hover:bg-white/10 transition-colors"
             >
-              Sign in to comment
+              Sign in to react or comment
             </Link>
           )}
         </div>

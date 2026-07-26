@@ -8,6 +8,7 @@
 4. what about comment moderation? being able to delete them...or spam...or stuff like that.
 5. what should users be able to share? link to essay (what should be the preview)? exact quote? etc
 6. autosave??? (maybe not needed...maybe needed)
+7. let's make the dashed circle around the plus smaller
 
 
 1. Shared, real published posts (backend)
@@ -38,4 +39,7 @@ Copy-link, share to X/LinkedIn, and proper Open Graph / Twitter meta per essay. 
 Still the gold standard for essay readers and feed apps. Cheap to add once posts are on a backend, and it signals “serious writer,” not just a SPA.
 
 10. Bookmarks / reading list (uses your existing auth)
-Save essays, resume unfinished ones, maybe a simple “continue reading.” Gives Clerk accounts a concrete reader benefit without needing comments first.
+Save essays, resume unfinished ones, maybe a simple “continue reading.” Gives accounts a concrete reader benefit without needing comments first.
+
+11. Live discussions via Supabase Realtime
+Comments and reactions currently refresh on mount / window focus. Subscribe to Postgres changes on comments/reactions (and maybe inline_threads) so open essay tabs update live without a reload.

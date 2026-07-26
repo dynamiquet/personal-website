@@ -2,8 +2,8 @@
   context/DiscussionContext.jsx
 
   Shared discussion state for inline threads, article comments, and reactions.
-  Dev persistence: shared JSON file via /api/discussions (see vite-plugin-discussions-api).
-  Guest identity still lives in localStorage (per browser).
+  Dev persistence: still JSON via /api/discussions until posts/discussions move to Supabase.
+  Comments and reactions both require a signed-in Supabase user.
 */
 
 import {
@@ -20,7 +20,6 @@ import {
   createInlineThread as createInlineThreadInStore,
   deleteComment as deleteCommentFromStore,
   fetchStore,
-  getOrCreateGuestId,
   getPostDiscussion,
   normalizeStore,
   pushStore,
@@ -36,26 +35,19 @@ function emptyStore() {
 
 function authorSnapshot(user, isAuthor) {
   if (!user) return null
-  const email = user.primaryEmailAddress?.emailAddress || ''
-  const displayName = (
-    email
-    || user.fullName
-    || user.username
-    || 'Reader'
-  )
+  const email = user.email || ''
   return {
     id: user.id,
-    displayName,
+    displayName: user.displayName || email || 'Reader',
     email,
-    avatarUrl: user.imageUrl || '',
+    avatarUrl: user.avatarUrl || '',
     isAuthor: Boolean(isAuthor),
   }
 }
 
-export function DiscussionProvider({ children, storage }) {
+export function DiscussionProvider({ children }) {
   const { isSignedIn, isAuthor, user } = useAuth()
   const [store, setStore] = useState(emptyStore)
-  const [guestId] = useState(() => getOrCreateGuestId(storage))
 
   const refresh = useCallback(async () => {
     const remote = await fetchStore()
@@ -95,7 +87,7 @@ export function DiscussionProvider({ children, storage }) {
     return normalized
   }, [])
 
-  const viewerId = isSignedIn && user?.id ? user.id : guestId
+  const viewerId = isSignedIn && user?.id ? user.id : null
 
   const getDiscussionForPost = useCallback((postId) => (
     getPostDiscussion(store, postId)
@@ -136,6 +128,9 @@ export function DiscussionProvider({ children, storage }) {
   }, [isSignedIn, user, isAuthor, store, persist])
 
   const createInlineReaction = useCallback(({ postId, anchor, emoji }) => {
+    if (!isSignedIn || !user || !viewerId) {
+      return { ok: false, reason: 'auth_required' }
+    }
     let next = store
     const discussion = getPostDiscussion(next, postId)
     let thread = findMatchingThread(discussion.inlineThreads, postId, anchor)
@@ -147,7 +142,7 @@ export function DiscussionProvider({ children, storage }) {
       thread = created.thread
     }
 
-    const author = isSignedIn && user ? authorSnapshot(user, isAuthor) : null
+    const author = authorSnapshot(user, isAuthor)
     const toggled = toggleReactionInStore(next, {
       targetType: 'excerpt',
       targetId: thread.id,
@@ -169,7 +164,10 @@ export function DiscussionProvider({ children, storage }) {
   }, [store, viewerId, persist, isSignedIn, user, isAuthor])
 
   const toggleExcerptReaction = useCallback(({ threadId, emoji }) => {
-    const author = isSignedIn && user ? authorSnapshot(user, isAuthor) : null
+    if (!isSignedIn || !user || !viewerId) {
+      return { ok: false, reason: 'auth_required' }
+    }
+    const author = authorSnapshot(user, isAuthor)
     const toggled = toggleReactionInStore(store, {
       targetType: 'excerpt',
       targetId: threadId,
@@ -241,7 +239,10 @@ export function DiscussionProvider({ children, storage }) {
   }, [store, canDeleteComment, persist])
 
   const toggleCommentReaction = useCallback(({ commentId, emoji }) => {
-    const author = isSignedIn && user ? authorSnapshot(user, isAuthor) : null
+    if (!isSignedIn || !user || !viewerId) {
+      return { ok: false, reason: 'auth_required' }
+    }
+    const author = authorSnapshot(user, isAuthor)
     const toggled = toggleReactionInStore(store, {
       targetType: 'comment',
       targetId: commentId,
