@@ -2,7 +2,7 @@
   components/EditToolbar.jsx
 
   Author-only toolbar shown while editing an essay.
-  Controls: body font, text size, alignment, footer panel toggle,
+  Controls: body font, text size, alignment,
   plus Save / Delete / Reading mode.
 */
 
@@ -37,33 +37,14 @@ function Segment({ options, value, onChange, ariaLabel }) {
   )
 }
 
-function ToolBtn({ active, onClick, children }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`font-ui text-[0.72rem] font-semibold px-3 py-1.5 rounded-full
-                  border transition-colors
-                  ${active
-                    ? 'bg-choc-accent/25 border-choc-accent text-choc-text'
-                    : 'bg-white/5 border-white/20 text-choc-soft hover:text-choc-text hover:bg-white/10'
-                  }`}
-    >
-      {children}
-    </button>
-  )
-}
-
 export default function EditToolbar({
   wordCount,
   bodyFont,
   textSize,
   align,
-  showFooter,
   onBodyFont,
   onTextSize,
   onAlign,
-  onToggleFooter,
   onReadingMode,
   onDelete,
   onSave,
@@ -106,10 +87,6 @@ export default function EditToolbar({
           value={align}
           onChange={onAlign}
         />
-
-        <ToolBtn active={showFooter} onClick={onToggleFooter}>
-          Footer
-        </ToolBtn>
 
         <span className="ml-auto font-ui text-choc-soft text-xs tabular-nums">
           {wordCount} words
