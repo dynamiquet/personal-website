@@ -2,11 +2,21 @@
   utils/helpers.js — small, pure utility functions shared across components.
 */
 
+import { stripMarkdown } from './markdown'
+
 // Average silent reading speed: ~200 words/minute.
 export function readingTime(text) {
-  const words = text.trim().split(/\s+/).filter(Boolean).length
+  const plain = stripMarkdown(text ?? '')
+  const words = plain.split(/\s+/).filter(Boolean).length
   const mins  = Math.max(1, Math.round(words / 200))
   return `${mins} min read`
+}
+
+/** First plain-text line of a body, suitable for card excerpts. */
+export function excerptFromBody(body, maxLen = 110) {
+  const plain = stripMarkdown(body ?? '')
+  if (!plain) return ''
+  return plain.length > maxLen ? plain.slice(0, maxLen) : plain
 }
 
 export function formatDateToday() {
@@ -41,10 +51,10 @@ export function textSizeClass(id) {
 /** Defaults for new essays / older posts missing fields. */
 export function essayDefaults(post = {}) {
   return {
-    footer:   post.footer   ?? '',
-    bodyFont: post.bodyFont ?? 'hand',
-    textSize: post.textSize ?? 'md',
-    align:    post.align    ?? 'left',
+    footnotes: Array.isArray(post.footnotes) ? post.footnotes : [],
+    bodyFont:  post.bodyFont ?? 'hand',
+    textSize:  post.textSize ?? 'md',
+    align:     post.align    ?? 'left',
   }
 }
 
