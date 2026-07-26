@@ -12,7 +12,9 @@
     "@clerk/react": "^6.12.7",
     "react": "^18.3.0",
     "react-dom": "^18.3.0",
-    "react-router-dom": "^6.24.0"
+    "react-markdown": "^10.1.0",
+    "react-router-dom": "^6.24.0",
+    "remark-gfm": "^4.0.1"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^4.3.0",
