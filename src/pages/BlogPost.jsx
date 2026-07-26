@@ -2,21 +2,27 @@
   pages/BlogPost.jsx — a single essay.
 
   Authors get read + edit modes. Edit mode includes a toolbar for font,
-  size, alignment, and an optional essay footer.
-  Readers only see the reading view.
+  size, alignment, Markdown formatting, footnotes, and live preview.
+  Readers only see the reading view (Markdown + superscript footnotes).
 */
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useParams, useNavigate, useLocation, Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { usePostsContext } from '../context/PostsContext'
 import EditToolbar from '../components/EditToolbar'
+import EssayBody from '../components/EssayBody'
+import FootnotesEditor from '../components/FootnotesEditor'
+import MarkdownToolbar from '../components/MarkdownToolbar'
+import { ConfirmDialog } from '../components/Dialog'
 import {
   readingTime,
+  excerptFromBody,
   essayDefaults,
   bodyFontClass,
   textSizeClass,
 } from '../utils/helpers'
+import { handleMarkdownKeyDown, stripMarkdown } from '../utils/markdown'
 
 export default function BlogPost() {
   const { id }                          = useParams()
@@ -24,6 +30,10 @@ export default function BlogPost() {
   const { state: routerState }          = useLocation()
   const { isAuthor }                    = useAuth()
   const { posts, updatePost, deletePost } = usePostsContext()
+  const bodyRef                         = useRef(null)
+  const undoStackRef                    = useRef([])
+  const redoStackRef                    = useRef([])
+  const lastTypingAtRef                 = useRef(0)
 
   const post = posts.find(p => p.id === id)
   const defaults = essayDefaults(post)
@@ -32,13 +42,15 @@ export default function BlogPost() {
   const [isEditing, setIsEditing] = useState(
     isAuthor && (routerState?.editing ?? false),
   )
+  const [editTab, setEditTab]     = useState('write') // 'write' | 'preview'
   const [title, setTitle]         = useState(post?.title ?? '')
   const [body, setBody]           = useState(post?.body ?? '')
-  const [footer, setFooter]       = useState(defaults.footer)
+  const [footnotes, setFootnotes] = useState(defaults.footnotes)
   const [bodyFont, setBodyFont]   = useState(defaults.bodyFont)
   const [textSize, setTextSize]   = useState(defaults.textSize)
   const [align, setAlign]         = useState(defaults.align)
-  const [showFooter, setShowFooter] = useState(Boolean(defaults.footer))
+  const [confirmDelete, setConfirmDelete] = useState(false)
+  const promptApiRef = useRef({})
 
   useEffect(() => {
     if (!isAuthor) setIsEditing(false)
@@ -50,12 +62,62 @@ export default function BlogPost() {
     const d = essayDefaults(post)
     setTitle(post.title ?? '')
     setBody(post.body ?? '')
-    setFooter(d.footer)
+    setFootnotes(d.footnotes)
     setBodyFont(d.bodyFont)
     setTextSize(d.textSize)
     setAlign(d.align)
-    setShowFooter(Boolean(d.footer))
+    setEditTab('write')
+    undoStackRef.current = []
+    redoStackRef.current = []
+    lastTypingAtRef.current = 0
   }, [post?.id])
+
+  function changeBody(next, { source = 'typing' } = {}) {
+    if (next === body) return
+
+    const now = Date.now()
+    const startsTypingGroup = source !== 'typing' || now - lastTypingAtRef.current > 700
+    if (startsTypingGroup) undoStackRef.current.push(body)
+
+    lastTypingAtRef.current = source === 'typing' ? now : 0
+    redoStackRef.current = []
+    setBody(next)
+  }
+
+  function restoreBody(value) {
+    setBody(value)
+    lastTypingAtRef.current = 0
+    requestAnimationFrame(() => {
+      const el = bodyRef.current
+      if (!el) return
+      el.focus()
+      el.setSelectionRange(value.length, value.length)
+    })
+  }
+
+  function undoBody() {
+    const previous = undoStackRef.current.pop()
+    if (previous === undefined) return
+    redoStackRef.current.push(body)
+    restoreBody(previous)
+  }
+
+  function redoBody() {
+    const next = redoStackRef.current.pop()
+    if (next === undefined) return
+    undoStackRef.current.push(body)
+    restoreBody(next)
+  }
+
+  function updateFootnotes(next) {
+    setFootnotes(next)
+  }
+
+  function removeFootnote(noteId) {
+    setFootnotes(prev => prev.filter(f => f.id !== noteId))
+    const marker = new RegExp(`\\[\\^${noteId}\\]`, 'g')
+    changeBody(body.replace(marker, ''), { source: 'format' })
+  }
 
   if (!post) {
     return (
@@ -72,15 +134,15 @@ export default function BlogPost() {
   }
 
   function save() {
-    const firstLine = body.split('\n').find(l => l.trim())
+    const excerpt = excerptFromBody(body) || post.excerpt
     updatePost(id, {
-      title:    title.trim() || 'Untitled',
+      title:     title.trim() || 'Untitled',
       body,
-      footer:   footer.trim(),
+      footnotes,
       bodyFont,
       textSize,
       align,
-      excerpt:  firstLine ? firstLine.slice(0, 110) : post.excerpt,
+      excerpt,
     })
   }
 
@@ -88,11 +150,12 @@ export default function BlogPost() {
     if (!isAuthor) return
     if (isEditing) save()
     setIsEditing(e => !e)
+    setEditTab('write')
   }
 
-  function handleDelete() {
+  function handleDeleteConfirm() {
     if (!isAuthor) return
-    if (!window.confirm('Delete this essay? This cannot be undone.')) return
+    setConfirmDelete(false)
     deletePost(id)
     navigate('/writings')
   }
@@ -103,34 +166,36 @@ export default function BlogPost() {
     setIsEditing(false)
   }
 
-  const wordCount = body.trim().split(/\s+/).filter(Boolean).length
+  const plainWords = stripMarkdown(body).split(/\s+/).filter(Boolean).length
   const showEditUi = isAuthor
 
-  // Reading view uses saved post fields; edit preview uses local state.
   const viewFont  = isEditing ? bodyFont : (post.bodyFont ?? 'hand')
   const viewSize  = isEditing ? textSize : (post.textSize ?? 'md')
   const viewAlign = isEditing ? align    : (post.align ?? 'left')
-  const viewFooter = isEditing ? footer  : (post.footer ?? '')
+  const viewBody  = isEditing ? body     : post.body
+  const viewNotes = isEditing ? footnotes : (post.footnotes ?? [])
   const bodyClasses = `${bodyFontClass(viewFont)} ${textSizeClass(viewSize)} ${
     viewAlign === 'center' ? 'text-center' : 'text-left'
   }`
+
+  const emptyBodyLabel = isAuthor
+    ? 'No content yet — click Edit to write.'
+    : 'No content yet.'
 
   return (
     <section className="min-h-screen bg-grad-post text-choc-text pt-16 pb-28 px-[6vw]">
 
       {showEditUi && isEditing && (
         <EditToolbar
-          wordCount={wordCount}
+          wordCount={plainWords}
           bodyFont={bodyFont}
           textSize={textSize}
           align={align}
-          showFooter={showFooter}
           onBodyFont={setBodyFont}
           onTextSize={setTextSize}
           onAlign={setAlign}
-          onToggleFooter={() => setShowFooter(s => !s)}
           onReadingMode={handleToggleEdit}
-          onDelete={handleDelete}
+          onDelete={() => setConfirmDelete(true)}
           onSave={handleSave}
         />
       )}
@@ -186,62 +251,96 @@ export default function BlogPost() {
           </h1>
         )}
 
-        {isEditing ? (
-          <textarea
-            value={body}
-            onChange={e => setBody(e.target.value)}
-            placeholder="Start writing..."
-            rows={16}
-            className={`w-full bg-transparent text-choc-text resize-none outline-none
-                        border border-choc-text/15 rounded-lg p-4
-                        placeholder:text-choc-soft/40 focus:border-choc-accent/50
-                        transition-colors ${bodyClasses}`}
-          />
-        ) : (
-          <div className={`${bodyClasses} text-choc-text whitespace-pre-wrap`}>
-            {post.body || (
-              <span className="text-choc-soft italic">
-                {isAuthor
-                  ? 'No content yet — click Edit to write.'
-                  : 'No content yet.'}
-              </span>
-            )}
+        {isEditing && (
+          <div
+            role="tablist"
+            aria-label="Editor view"
+            className="inline-flex rounded-full border border-white/20 bg-white/5 p-0.5 mb-4"
+          >
+            {[
+              { id: 'write', label: 'Write' },
+              { id: 'preview', label: 'Preview' },
+            ].map(tab => {
+              const active = editTab === tab.id
+              return (
+                <button
+                  key={tab.id}
+                  type="button"
+                  role="tab"
+                  aria-selected={active}
+                  onClick={() => setEditTab(tab.id)}
+                  className={`font-ui text-[0.72rem] font-semibold px-3 py-1.5 rounded-full
+                              transition-colors
+                              ${active
+                                ? 'bg-choc-accent text-choc-deep'
+                                : 'text-choc-soft hover:text-choc-text hover:bg-white/10'
+                              }`}
+                >
+                  {tab.label}
+                </button>
+              )
+            })}
           </div>
         )}
 
-        {isEditing && showFooter && (
-          <div className="mt-10 pt-8 border-t border-choc-text/15">
-            <label className="block mb-3 font-ui text-[0.7rem] uppercase
-                              tracking-[0.14em] text-choc-soft">
-              Essay footer
-            </label>
+        {isEditing && editTab === 'write' ? (
+          <div>
+            <MarkdownToolbar
+              textareaRef={bodyRef}
+              onChange={changeBody}
+              footnotes={footnotes}
+              onFootnotesChange={updateFootnotes}
+              promptApiRef={promptApiRef}
+            />
             <textarea
-              value={footer}
-              onChange={e => setFooter(e.target.value)}
-              placeholder="A closing note, dedication, or afterword…"
-              rows={4}
-              className={`w-full bg-transparent text-choc-soft resize-none outline-none
-                          border border-choc-text/15 rounded-lg p-4 text-[1.15rem]
-                          leading-relaxed placeholder:text-choc-soft/35
-                          focus:border-choc-accent/50 transition-colors
-                          ${bodyFontClass(bodyFont)}
-                          ${align === 'center' ? 'text-center' : 'text-left'}`}
+              ref={bodyRef}
+              value={body}
+              onChange={e => changeBody(e.target.value)}
+              onKeyDown={e => handleMarkdownKeyDown(
+                e,
+                e.currentTarget,
+                changeBody,
+                {
+                  onUndo: undoBody,
+                  onRedo: redoBody,
+                  onRequestLink: () => promptApiRef.current.openLink?.(),
+                  onRequestImage: () => promptApiRef.current.openImage?.(),
+                  onRequestFootnote: () => promptApiRef.current.openFootnote?.(),
+                },
+              )}
+              placeholder={"Start writing…\n\nMarkdown works: **bold**, *italic*, ~~strike~~, [links](https://…), ![images](https://…), ## headings, footnotes via Note¹"}
+              rows={16}
+              className={`w-full bg-transparent text-choc-text resize-y outline-none
+                          border border-choc-text/15 rounded-lg p-4 min-h-[20rem]
+                          placeholder:text-choc-soft/40 focus:border-choc-accent/50
+                          transition-colors ${bodyClasses}`}
+            />
+            <FootnotesEditor
+              footnotes={footnotes}
+              onChange={updateFootnotes}
+              onRemove={removeFootnote}
             />
           </div>
-        )}
-
-        {!isEditing && viewFooter.trim() && (
-          <footer
-            className={`mt-14 pt-8 border-t border-choc-text/15
-                        text-choc-soft text-[1.15rem] leading-relaxed
-                        whitespace-pre-wrap ${bodyFontClass(viewFont)}
-                        ${viewAlign === 'center' ? 'text-center' : 'text-left'}`}
-          >
-            {viewFooter.trim()}
-          </footer>
+        ) : (
+          <EssayBody
+            content={viewBody}
+            footnotes={viewNotes}
+            className={`${bodyClasses} text-choc-text`}
+            emptyLabel={isEditing ? 'Nothing to preview yet.' : emptyBodyLabel}
+          />
         )}
 
       </div>
+
+      <ConfirmDialog
+        open={confirmDelete}
+        title="Delete this essay?"
+        message="This cannot be undone. The essay will be removed from your writings."
+        confirmLabel="Delete"
+        danger
+        onConfirm={handleDeleteConfirm}
+        onCancel={() => setConfirmDelete(false)}
+      />
     </section>
   )
 }
