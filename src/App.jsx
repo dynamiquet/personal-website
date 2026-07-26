@@ -2,7 +2,7 @@
   App.jsx — root component.
 
   Sets up React Router and wraps everything in <PostsProvider> so any
-  page can read/write posts via usePostsContext().
+  page can read/write posts via usePostsContext() (Supabase `posts`).
   Auth comes from AuthProvider in main.jsx + useAuth() in pages.
 */
 

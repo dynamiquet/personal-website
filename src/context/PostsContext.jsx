@@ -1,8 +1,8 @@
 /*
   context/PostsContext.jsx
 
-  Wraps all post state so any page can read or mutate posts without prop
-  drilling. Dev persistence: shared JSON via /api/posts (see vite-plugin-local-api).
+  Shared essay state backed by Supabase `posts` (RLS: public read, author write).
+  Pages keep using usePostsContext(); only this module talks to src/lib/posts.
 
   Usage:
     import { usePostsContext } from '../context/PostsContext'
@@ -16,19 +16,52 @@ import {
   useEffect,
   useState,
 } from 'react'
-import { SEED_POSTS, fetchPosts, pushPosts } from '../../data/seed'
+import { useAuth } from './AuthContext'
+import {
+  createPost,
+  deletePostRow,
+  listPosts,
+  updatePostRow,
+} from '../lib/posts'
 
 const PostsContext = createContext(null)
 
+function sortByPublishedAt(posts) {
+  return [...posts].sort((a, b) => {
+    const aTime = new Date(a.publishedAt || 0).getTime()
+    const bTime = new Date(b.publishedAt || 0).getTime()
+    return bTime - aTime
+  })
+}
+
 export function PostsProvider({ children }) {
-  const [posts, setPosts] = useState(() => [...SEED_POSTS])
+  const { user, isAuthor } = useAuth()
+  const [posts, setPosts] = useState([])
+  const [isLoaded, setIsLoaded] = useState(false)
+
+  const refresh = useCallback(async () => {
+    try {
+      const remote = await listPosts()
+      setPosts(remote)
+    } catch (err) {
+      console.warn('Failed to load posts from Supabase', err)
+    } finally {
+      setIsLoaded(true)
+    }
+  }, [])
 
   useEffect(() => {
     let cancelled = false
 
     async function load() {
-      const remote = await fetchPosts()
-      if (!cancelled) setPosts(remote)
+      try {
+        const remote = await listPosts()
+        if (!cancelled) setPosts(remote)
+      } catch (err) {
+        console.warn('Failed to load posts from Supabase', err)
+      } finally {
+        if (!cancelled) setIsLoaded(true)
+      }
     }
 
     load()
@@ -46,33 +79,39 @@ export function PostsProvider({ children }) {
     }
   }, [])
 
-  const persist = useCallback((next) => {
-    setPosts(next)
-    pushPosts(next).catch((err) => {
-      console.warn('Failed to persist posts to shared JSON', err)
+  const addPost = useCallback(async (partial = {}) => {
+    if (!isAuthor || !user?.id) {
+      throw new Error('Only authors can create posts')
+    }
+    const created = await createPost({
+      ...partial,
+      authorId: user.id,
     })
-  }, [])
+    setPosts((prev) => sortByPublishedAt([created, ...prev.filter(p => p.id !== created.id)]))
+    return created
+  }, [isAuthor, user?.id])
 
-  function addPost(post) {
-    persist([post, ...posts])
-  }
+  const updatePost = useCallback(async (id, changes) => {
+    if (!isAuthor) {
+      throw new Error('Only authors can update posts')
+    }
+    const updated = await updatePostRow(id, changes)
+    setPosts((prev) => sortByPublishedAt(
+      prev.map(p => (p.id === id ? updated : p)),
+    ))
+    return updated
+  }, [isAuthor])
 
-  function updatePost(id, changes) {
-    const next = posts.map(p => {
-      if (p.id !== id) return p
-      const merged = { ...p, ...changes }
-      delete merged.footer
-      return merged
-    })
-    persist(next)
-  }
-
-  function deletePost(id) {
-    persist(posts.filter(p => p.id !== id))
-  }
+  const deletePost = useCallback(async (id) => {
+    if (!isAuthor) {
+      throw new Error('Only authors can delete posts')
+    }
+    await deletePostRow(id)
+    setPosts((prev) => prev.filter(p => p.id !== id))
+  }, [isAuthor])
 
   return (
-    <PostsContext.Provider value={{ posts, addPost, updatePost, deletePost }}>
+    <PostsContext.Provider value={{ posts, isLoaded, refresh, addPost, updatePost, deletePost }}>
       {children}
     </PostsContext.Provider>
   )
