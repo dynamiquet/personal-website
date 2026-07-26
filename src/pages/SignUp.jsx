@@ -17,6 +17,7 @@ import { Show, UserButton, useSignUp } from '@clerk/react'
 import { useAuth } from '../context/AuthContext'
 import {
   FieldError,
+  PasswordField,
   authButtonClass,
   authInputClass,
   authLabelClass,
@@ -31,12 +32,15 @@ export default function SignUp() {
   const [password, setPassword] = useState('')
   const [code, setCode]         = useState('')
   const [formError, setFormError] = useState('')
+  // Local flag: relying only on Clerk status can miss this step when other
+  // fields (e.g. legal_accepted) remain in missingFields after the code is sent.
+  const [codeSent, setCodeSent] = useState(false)
 
   const busy = fetchStatus === 'fetching'
   const awaitingEmailCode =
-    signUp?.status === 'missing_requirements' &&
-    signUp?.unverifiedFields?.includes('email_address') &&
-    (signUp?.missingFields?.length ?? 0) === 0
+    codeSent ||
+    (signUp?.status === 'missing_requirements' &&
+      Boolean(signUp?.unverifiedFields?.includes('email_address')))
 
   async function finishSignUp() {
     await signUp.finalize({
@@ -47,6 +51,35 @@ export default function SignUp() {
     })
   }
 
+  function isAlreadyVerifiedError(error) {
+    const msg = `${error?.message || ''} ${error?.longMessage || ''}`.toLowerCase()
+    return msg.includes('already') && msg.includes('verif')
+  }
+
+  // After email is verified, resolve leftover requirements and activate the session.
+  async function completeSignUp() {
+    if (signUp.missingFields?.includes('legal_accepted')) {
+      const { error } = await signUp.update({ legalAccepted: true })
+      if (error) {
+        setFormError(error.message || 'Could not accept terms.')
+        return false
+      }
+    }
+
+    if (signUp.status === 'complete' || signUp.createdSessionId) {
+      await finishSignUp()
+      return true
+    }
+
+    const missing = signUp.missingFields?.length
+      ? signUp.missingFields.join(', ')
+      : signUp.unverifiedFields?.length
+        ? `unverified: ${signUp.unverifiedFields.join(', ')}`
+        : 'unknown requirements'
+    setFormError(`Sign-up is not complete yet (${missing}).`)
+    return false
+  }
+
   async function handleSubmit(e) {
     e.preventDefault()
     setFormError('')
@@ -54,13 +87,21 @@ export default function SignUp() {
     const { error } = await signUp.password({
       emailAddress: email,
       password,
+      // Satisfies Clerk Legal compliance when enabled in the Dashboard.
+      legalAccepted: true,
     })
     if (error) {
       setFormError(error.message || 'Could not start sign-up.')
       return
     }
 
-    await signUp.verifications.sendEmailCode()
+    const { error: sendError } = await signUp.verifications.sendEmailCode()
+    if (sendError) {
+      setFormError(sendError.message || 'Could not send verification code.')
+      return
+    }
+
+    setCodeSent(true)
   }
 
   async function handleVerify(e) {
@@ -68,16 +109,22 @@ export default function SignUp() {
     setFormError('')
 
     const { error } = await signUp.verifications.verifyEmailCode({ code })
-    if (error) {
+    if (error && !isAlreadyVerifiedError(error)) {
       setFormError(error.message || 'Invalid verification code.')
       return
     }
 
-    if (signUp.status === 'complete') {
-      await finishSignUp()
-    } else {
-      setFormError('Sign-up is not complete yet. Try again or request a new code.')
+    await completeSignUp()
+  }
+
+  async function handleResendCode() {
+    setFormError('')
+    const { error } = await signUp.verifications.sendEmailCode()
+    if (error) {
+      setFormError(error.message || 'Could not resend verification code.')
+      return
     }
+    setCodeSent(true)
   }
 
   return (
@@ -161,7 +208,7 @@ export default function SignUp() {
               <button
                 type="button"
                 disabled={busy}
-                onClick={() => signUp.verifications.sendEmailCode()}
+                onClick={handleResendCode}
                 className="w-full font-ui text-[14px] text-ink-soft
                            hover:text-ink transition-colors py-2"
               >
@@ -186,21 +233,12 @@ export default function SignUp() {
                 <FieldError message={errors?.fields?.emailAddress?.message} />
               </label>
 
-              <label className="block">
-                <span className={authLabelClass}>Password</span>
-                <input
-                  id="password"
-                  name="password"
-                  type="password"
-                  autoComplete="new-password"
-                  required
-                  value={password}
-                  onChange={e => setPassword(e.target.value)}
-                  placeholder="••••••••"
-                  className={authInputClass}
-                />
-                <FieldError message={errors?.fields?.password?.message} />
-              </label>
+              <PasswordField
+                value={password}
+                onChange={e => setPassword(e.target.value)}
+                autoComplete="new-password"
+                errorMessage={errors?.fields?.password?.message}
+              />
 
               {(formError || errors?.global?.[0]) && (
                 <p className="font-ui text-[13px] text-red-600">

@@ -6,11 +6,12 @@
 */
 
 import { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { Show, UserButton, useSignIn } from '@clerk/react'
 import { useAuth } from '../context/AuthContext'
 import {
   FieldError,
+  PasswordField,
   authButtonClass,
   authInputClass,
   authLabelClass,
@@ -20,6 +21,10 @@ export default function Login() {
   const { signIn, errors, fetchStatus } = useSignIn()
   const { isAuthor } = useAuth()
   const navigate = useNavigate()
+  const location = useLocation()
+  const returnTo = typeof location.state?.from === 'string' && location.state.from.startsWith('/')
+    ? location.state.from
+    : '/writings'
 
   const [email, setEmail]       = useState('')
   const [password, setPassword] = useState('')
@@ -33,7 +38,7 @@ export default function Login() {
     await signIn.finalize({
       navigate: ({ session }) => {
         if (session?.currentTask) return
-        navigate('/writings')
+        navigate(returnTo)
       },
     })
   }
@@ -204,21 +209,12 @@ export default function Login() {
                 <FieldError message={errors?.fields?.identifier?.message} />
               </label>
 
-              <label className="block">
-                <span className={authLabelClass}>Password</span>
-                <input
-                  id="password"
-                  name="password"
-                  type="password"
-                  autoComplete="current-password"
-                  required
-                  value={password}
-                  onChange={e => setPassword(e.target.value)}
-                  placeholder="••••••••"
-                  className={authInputClass}
-                />
-                <FieldError message={errors?.fields?.password?.message} />
-              </label>
+              <PasswordField
+                value={password}
+                onChange={e => setPassword(e.target.value)}
+                autoComplete="current-password"
+                errorMessage={errors?.fields?.password?.message}
+              />
 
               {(formError || errors?.global?.[0]) && (
                 <p className="font-ui text-[13px] text-red-600">

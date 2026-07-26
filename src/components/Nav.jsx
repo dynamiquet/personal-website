@@ -28,11 +28,17 @@ function DrawerLink({ to, children, onClose }) {
 export default function Nav() {
   const [open, setOpen] = useState(false)
   const location = useLocation()
-  const { isAuthor } = useAuth()
+  const { isAuthor, user } = useAuth()
 
   const isDark = location.pathname.startsWith('/writings/')
   const close  = () => setOpen(false)
   const essaysLabel = isAuthor ? 'My essays' : 'Essays'
+  const accountLabel = (
+    user?.primaryEmailAddress?.emailAddress
+    || user?.emailAddresses?.[0]?.emailAddress
+    || user?.username
+    || 'Account'
+  )
 
   return (
     <>
@@ -97,10 +103,13 @@ export default function Nav() {
           </Show>
 
           <Show when="signed-in">
-            <div className="flex items-center gap-3 py-3 border-b border-gray-100">
+            <div className="flex items-center gap-3 py-3 border-b border-gray-100 min-w-0">
               <UserButton afterSignOutUrl="/" />
-              <span className="font-ui text-[14px] font-medium text-ink-soft">
-                Account
+              <span
+                className="font-ui text-[14px] font-medium text-ink-soft truncate"
+                title={accountLabel}
+              >
+                {accountLabel}
               </span>
             </div>
           </Show>
