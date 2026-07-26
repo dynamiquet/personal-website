@@ -6,7 +6,7 @@
   Readers only see the reading view (Markdown + superscript footnotes).
 
   Reading mode also hosts inline excerpt discussion and a general
-  comment section (localStorage prototype via DiscussionContext).
+  comment section (discussions still use the local JSON API for now).
 */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
@@ -38,7 +38,7 @@ export default function BlogPost() {
   const navigate                        = useNavigate()
   const { state: routerState }          = useLocation()
   const { isAuthor }                    = useAuth()
-  const { posts, updatePost, deletePost } = usePostsContext()
+  const { posts, isLoaded: postsLoaded, updatePost, deletePost } = usePostsContext()
   const {
     isSignedIn,
     viewerId,
@@ -272,6 +272,16 @@ export default function BlogPost() {
   }
 
   if (!post) {
+    // Posts arrive asynchronously from Supabase — don't cry "not found" mid-load.
+    if (!postsLoaded) {
+      return (
+        <section className="min-h-screen bg-grad-post pt-16 flex items-center
+                            justify-center text-choc-text font-ui">
+          <p className="text-choc-soft">Loading essay…</p>
+        </section>
+      )
+    }
+
     return (
       <section className="min-h-screen bg-grad-post pt-16 flex items-center
                           justify-center text-choc-text font-ui">
@@ -287,7 +297,7 @@ export default function BlogPost() {
 
   function save() {
     const excerpt = excerptFromBody(body) || post.excerpt
-    updatePost(id, {
+    return updatePost(id, {
       title:     title.trim() || 'Untitled',
       body,
       footnotes,
@@ -295,6 +305,8 @@ export default function BlogPost() {
       textSize,
       align,
       excerpt,
+    }).catch((err) => {
+      console.warn('Failed to save post', err)
     })
   }
 
@@ -305,11 +317,15 @@ export default function BlogPost() {
     setEditTab('write')
   }
 
-  function handleDeleteConfirm() {
+  async function handleDeleteConfirm() {
     if (!isAuthor) return
     setConfirmDelete(false)
-    deletePost(id)
-    navigate('/writings')
+    try {
+      await deletePost(id)
+      navigate('/writings')
+    } catch (err) {
+      console.warn('Failed to delete post', err)
+    }
   }
 
   function handleSave() {
@@ -592,12 +608,6 @@ export default function BlogPost() {
             postId: post.id,
             threadId,
             parentId,
-            text,
-          })}
-          onAddTopLevelComment={(threadId, text) => addInlineReply({
-            postId: post.id,
-            threadId,
-            parentId: null,
             text,
           })}
           canDeleteComment={canDeleteComment}

@@ -8,27 +8,28 @@
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { usePostsContext } from '../context/PostsContext'
-import { cardStyle, readingTime, formatDateToday } from '../utils/helpers'
+import { cardStyle, readingTime } from '../utils/helpers'
 
 export default function BlogList() {
   const { isAuthor } = useAuth()
   const { posts, addPost } = usePostsContext()
   const navigate = useNavigate()
 
-  function handleNewPost() {
-    const post = {
-      id:       'p' + Date.now(),
-      title:    'Untitled',
-      excerpt:  'Click edit to write something here.',
-      date:     formatDateToday(),
-      body:      '',
-      footnotes: [],
-      bodyFont:  'hand',
-      textSize: 'md',
-      align:    'left',
+  async function handleNewPost() {
+    try {
+      const post = await addPost({
+        title: 'Untitled',
+        excerpt: 'Click edit to write something here.',
+        body: '',
+        footnotes: [],
+        bodyFont: 'hand',
+        textSize: 'md',
+        align: 'left',
+      })
+      navigate(`/writings/${post.id}`, { state: { editing: true } })
+    } catch (err) {
+      console.warn('Failed to create post', err)
     }
-    addPost(post)
-    navigate(`/writings/${post.id}`, { state: { editing: true } })
   }
 
   return (

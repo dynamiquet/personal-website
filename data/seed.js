@@ -1,8 +1,13 @@
 /*
-  data/seed.js — posts seed + client persistence helpers.
+  data/seed.js — seed essay content + legacy local helpers.
 
-  Dev persistence: fetchPosts / pushPosts → Vite /api/posts → data/posts.json.
-  loadPosts / savePosts remain available for tests / local fallbacks.
+  Live essays load from Supabase (see src/lib/posts.js).
+  SEED_POSTS is still used by:
+    - supabase/seed_posts.sql (one-shot insert)
+    - vite-plugin-local-api.js (dev /api/posts fallback until that plugin is removed)
+
+  loadPosts / savePosts / fetchPosts / pushPosts remain for tests and the
+  local JSON path; the app UI no longer calls them.
 */
 
 const STORAGE_KEY = 'dt_posts'
@@ -14,6 +19,7 @@ export const SEED_POSTS = [
     title: 'On starting things badly',
     excerpt: 'Most of what I make begins as something I am slightly embarrassed by.',
     date: 'June 2, 2026',
+    publishedAt: '2026-06-02T12:00:00.000Z',
     body: `Most of what I make begins as something I am slightly embarrassed by.
 
 I used to think that meant I was doing it wrong. Now I think it's closer to evidence that I started at all. The embarrassing draft is the one that exists — the polished version only ever lives in my head, where it costs nothing and proves nothing.
@@ -37,6 +43,7 @@ If you want a place to begin, begin [here](/writings) — awkwardly is fine.[^1]
     title: 'A short note on quiet rooms',
     excerpt: "I write best in rooms that don't ask anything of me.",
     date: 'May 21, 2026',
+    publishedAt: '2026-05-21T12:00:00.000Z',
     body: `I write best in rooms that don't ask anything of me.
 
 Not silent rooms necessarily — just rooms with no opinion about what I should be doing in them. A kitchen at 11pm. A train. Anywhere that isn't a desk that's seen too many unfinished things.`,
@@ -46,6 +53,7 @@ Not silent rooms necessarily — just rooms with no opinion about what I should 
     title: 'Building in public, slowly',
     excerpt: 'This site is a block I will keep building on. That is the entire plan.',
     date: 'May 9, 2026',
+    publishedAt: '2026-05-09T12:00:00.000Z',
     body: `This site is a block I will keep building on. That is the entire plan.
 
 No roadmap, no launch date for some imagined final version. Just a place that grows the way I do — a little awkwardly, mostly in the right direction.`,
