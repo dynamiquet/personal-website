@@ -17,6 +17,23 @@ function classNameToString(className) {
   return Array.isArray(className) ? className.join(' ') : String(className)
 }
 
+/** Smooth in-page jump for footnote refs / backrefs. */
+function scrollToFootnoteTarget(e, href) {
+  if (typeof href !== 'string' || !href.startsWith('#')) return
+  const id = decodeURIComponent(href.slice(1))
+  const el = document.getElementById(id)
+  if (!el) return
+
+  e.preventDefault()
+  el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  el.classList.add('essay-fn-flash')
+  window.setTimeout(() => el.classList.remove('essay-fn-flash'), 1400)
+
+  if (window.history?.replaceState) {
+    window.history.replaceState(null, '', href)
+  }
+}
+
 function isFootnoteHref(href) {
   return typeof href === 'string' && (
     href.includes('#user-content-fn')
@@ -49,6 +66,7 @@ const components = {
         <a
           href={href}
           className={isBack ? 'essay-fn-back' : 'essay-fn-ref'}
+          onClick={e => scrollToFootnoteTarget(e, href)}
           {...props}
         >
           {children}
