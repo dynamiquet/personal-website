@@ -157,3 +157,61 @@
   background: rgba(255, 255, 255, 0.05);
 }
 
+/* Footnotes — superscript markers + endnotes list */
+.essay-sup {
+  font-size: 0.65em;
+  line-height: 0;
+  vertical-align: super;
+}
+.essay-fn-ref,
+.essay-fn-back {
+  color: #c98a4b;
+  text-decoration: none;
+  font-weight: 600;
+  padding: 0 0.05em;
+  scroll-margin-top: 5.5rem;
+}
+.essay-fn-ref:hover,
+.essay-fn-back:hover {
+  text-decoration: underline;
+  text-underline-offset: 0.12em;
+}
+.essay-fn-back {
+  margin-left: 0.25em;
+}
+.essay-footnotes {
+  margin-top: 3rem;
+  padding-top: 1.75rem;
+  border-top: 1px solid rgba(241, 227, 204, 0.18);
+  font-size: 0.72em;
+  line-height: 1.55;
+  color: #cdb89a;
+  text-align: left;
+}
+.essay-footnotes-title {
+  font-family: Manrope, system-ui, sans-serif;
+  font-size: 0.85rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #cdb89a;
+  margin: 0 0 1rem;
+}
+.essay-footnotes ol {
+  margin: 0;
+  padding-left: 1.4em;
+}
+.essay-footnotes li {
+  margin: 0.55em 0;
+  scroll-margin-top: 5.5rem;
+  border-radius: 0.35em;
+  transition: background-color 0.35s ease, box-shadow 0.35s ease;
+}
+.essay-footnotes li > p {
+  margin: 0.25em 0;
+}
+.essay-fn-flash {
+  background-color: rgba(201, 138, 75, 0.22) !important;
+  box-shadow: 0 0 0 0.35em rgba(201, 138, 75, 0.22);
+  border-radius: 0.2em;
+}
